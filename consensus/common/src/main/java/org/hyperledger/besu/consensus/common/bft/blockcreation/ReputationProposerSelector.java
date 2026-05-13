@@ -58,10 +58,10 @@ public class ReputationProposerSelector implements ProposerSelector {
     final List<Address> sortedValidators = new ArrayList<>(validatorsForRound);
     sortedValidators.sort(null);
 
-    final long overallRoundNumber = roundIdentifier.getSequenceNumber() - 1;
+    final long rotation = roundIdentifier.getSequenceNumber() + roundIdentifier.getRoundNumber();
 
     final int proposerIndex =
-        (int) Math.floorMod(overallRoundNumber, (long) sortedValidators.size());
+        (int) Math.floorMod(rotation, (long) sortedValidators.size());
 
     return sortedValidators.get(proposerIndex);
   }
