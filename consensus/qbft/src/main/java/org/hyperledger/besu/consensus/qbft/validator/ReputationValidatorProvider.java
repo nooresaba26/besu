@@ -18,7 +18,6 @@ import com.google.common.cache.CacheBuilder;
 public class ReputationValidatorProvider implements ValidatorProvider {
 
   private final Blockchain blockchain;
-  // private final ValidatorProvider delegate;
   private final WeightedValidatorSelector selector;
   private final ReputationCandidateProvider candidateProvider;
 
@@ -27,10 +26,10 @@ public class ReputationValidatorProvider implements ValidatorProvider {
 
   public ReputationValidatorProvider(
       final Blockchain blockchain,
-      final ValidatorProvider delegate,
+      final ReputationCandidateProvider candidateProvider,
       final WeightedValidatorSelector selector) {
     this.blockchain = blockchain;
-    this.delegate = delegate;
+    this.candidateProvider = candidateProvider;
     this.selector = selector;
   }
 
@@ -45,9 +44,12 @@ public class ReputationValidatorProvider implements ValidatorProvider {
       return committeeCache.get(
           parentHeader.getHash(),
           () -> {
-            // final Collection<Address> candidates = delegate.getValidatorsAfterBlock(parentHeader);
-            final Collection<Address> candidates = candidateProvider.getCandidatesAfterBlock(parentHeader);
-            final List<Address> selected = selector.selectValidators(candidates, parentHeader);
+            final Collection<Address> candidates =
+                candidateProvider.getCandidatesAfterBlock(parentHeader);
+
+            final List<Address> selected =
+                selector.selectValidators(candidates, parentHeader);
+
             return List.copyOf(selected);
           });
     } catch (final ExecutionException e) {
@@ -58,22 +60,22 @@ public class ReputationValidatorProvider implements ValidatorProvider {
   @Override
   public Collection<Address> getValidatorsForBlock(final BlockHeader header) {
     if (header.getNumber() == 0) {
-      return delegate.getValidatorsForBlock(header);
+      return candidateProvider.getCandidatesAfterBlock(header);
     }
 
     return blockchain
         .getBlockHeader(header.getParentHash())
         .map(this::getValidatorsAfterBlock)
-        .orElseGet(() -> delegate.getValidatorsForBlock(header));
+        .orElseGet(() -> candidateProvider.getCandidatesAfterBlock(header));
   }
 
   @Override
   public Optional<VoteProvider> getVoteProviderAtHead() {
-    return delegate.getVoteProviderAtHead();
+    return Optional.empty();
   }
 
   @Override
   public Optional<VoteProvider> getVoteProviderAfterBlock(final BlockHeader header) {
-    return delegate.getVoteProviderAfterBlock(header);
+    return Optional.empty();
   }
 }
