@@ -18,8 +18,9 @@ import com.google.common.cache.CacheBuilder;
 public class ReputationValidatorProvider implements ValidatorProvider {
 
   private final Blockchain blockchain;
-  private final ValidatorProvider delegate;
+  // private final ValidatorProvider delegate;
   private final WeightedValidatorSelector selector;
+  private final ReputationCandidateProvider candidateProvider;
 
   private final Cache<Hash, Collection<Address>> committeeCache =
       CacheBuilder.newBuilder().maximumSize(256).build();
@@ -44,7 +45,8 @@ public class ReputationValidatorProvider implements ValidatorProvider {
       return committeeCache.get(
           parentHeader.getHash(),
           () -> {
-            final Collection<Address> candidates = delegate.getValidatorsAfterBlock(parentHeader);
+            // final Collection<Address> candidates = delegate.getValidatorsAfterBlock(parentHeader);
+            final Collection<Address> candidates = candidateProvider.getCandidatesAfterBlock(parentHeader);
             final List<Address> selected = selector.selectValidators(candidates, parentHeader);
             return List.copyOf(selected);
           });
