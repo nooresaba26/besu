@@ -231,8 +231,10 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
     final QbftBlockInterface qbftBlockInterface = new QbftBlockInterfaceAdaptor(bftBlockInterface);
 
-    final ProposerSelector proposerSelector =
+    final ProposerSelector proposerSelector = 
         new BftProposerSelector(blockchain, bftBlockInterface, true, validatorProvider);
+
+        // this will be replaced too
 
     // NOTE: peers should not be used for accessing the network as it does not enforce the
     // "only send once" filter applied by the UniqueMessageMulticaster.
@@ -426,6 +428,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
     final ValidatorProvider validatorProvider =
         new ForkingValidatorProvider(
             blockchain, qbftForksSchedule, blockValidatorProvider, transactionValidatorProvider);
+            // this will be replaced
 
     return new BftContext(validatorProvider, epochManager, bftBlockInterface);
   }
