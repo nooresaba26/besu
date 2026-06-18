@@ -34,29 +34,26 @@ public class ReputationProposerSelector implements ProposerSelector {
     this.validatorProvider = validatorProvider;
   }
 
-  @Override
-  public Address selectProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
-    final Collection<Address> validators =
-      final long parentBlockNumber = roundIdentifier.getSequenceNumber() - 1;
+@Override
+public Address selectProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
+  final long parentBlockNumber = roundIdentifier.getSequenceNumber() - 1;
 
-final Collection<Address> validators =
-    blockchain
-        .getBlockHeader(parentBlockNumber)
-        .map(validatorProvider::getValidatorsAfterBlock)
-        .orElseGet(() -> validatorProvider.getValidatorsAtHead());
+  final Collection<Address> validators =
+      blockchain
+          .getBlockHeader(parentBlockNumber)
+          .map(validatorProvider::getValidatorsAfterBlock)
+          .orElseGet(() -> validatorProvider.getValidatorsAtHead());
 
-    final List<Address> committee = new ArrayList<>(validators);
-    committee.sort(Address::compareTo);
+  final List<Address> committee = new ArrayList<>(validators);
+  committee.sort(Address::compareTo);
 
-    if (committee.isEmpty()) {
-      throw new IllegalStateException("Reputation committee cannot be empty");
-    }
-
-    final long blockNumber = roundIdentifier.getSequenceNumber();
-    final int roundNumber = roundIdentifier.getRoundNumber();
-
-    final int index = Math.floorMod((int) (blockNumber + roundNumber), committee.size());
-
-    return committee.get(index);
+  if (committee.isEmpty()) {
+    throw new IllegalStateException("Reputation committee cannot be empty");
   }
+
+  final int index =
+      Math.floorMod(roundIdentifier.getRoundNumber(), committee.size());
+
+  return committee.get(index);
+}
 }
