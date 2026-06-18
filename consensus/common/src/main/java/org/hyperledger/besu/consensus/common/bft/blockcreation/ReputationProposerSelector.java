@@ -52,7 +52,7 @@ public Address selectProposerForRound(final ConsensusRoundIdentifier roundIdenti
   }
 
   final int index =
-      Math.floorMod(roundIdentifier.getRoundNumber(), committee.size());
+      Math.floorMod((int) roundIdentifier.getSequenceNumber(), committee.size());
 
   return committee.get(index);
 }
