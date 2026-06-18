@@ -1,5 +1,6 @@
 package org.hyperledger.besu.consensus.common.bft.blockcreation;
 
+import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
@@ -21,7 +22,7 @@ public class ReputationProposerSelector implements ProposerSelector {
   }
 
   @Override
-  public Address selectProposerForRound(final int round) {
+  public Address selectProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
     final Collection<Address> validators =
         validatorProvider.getValidatorsAfterBlock(blockchain.getChainHeadHeader());
 
@@ -32,8 +33,11 @@ public class ReputationProposerSelector implements ProposerSelector {
       throw new IllegalStateException("Reputation committee cannot be empty");
     }
 
+    final long blockNumber = roundIdentifier.getSequenceNumber();
+    final int roundNumber = roundIdentifier.getRoundNumber();
+
     final int index =
-        Math.floorMod((int) blockchain.getChainHeadHeader().getNumber() + round, committee.size());
+        Math.floorMod((int) (blockNumber + roundNumber), committee.size());
 
     return committee.get(index);
   }
