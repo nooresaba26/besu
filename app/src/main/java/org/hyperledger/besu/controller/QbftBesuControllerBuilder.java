@@ -37,7 +37,15 @@ import org.hyperledger.besu.consensus.common.bft.MessageTracker;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.UniqueMessageMulticaster;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftMiningCoordinator;
-import org.hyperledger.besu.consensus.common.bft.blockcreation.BftProposerSelector;
+// import org.hyperledger.besu.consensus.common.bft.blockcreation.BftProposerSelector;
+// new added:
+import org.hyperledger.besu.consensus.common.bft.blockcreation.ReputationProposerSelector;
+import org.hyperledger.besu.consensus.qbft.validator.ParticipationBalanceTracker;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationScoreCalculator;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationSelectionConfig;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.validator.WeightedValidatorSelector;
+//new add ends
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorPeers;
 import org.hyperledger.besu.consensus.common.bft.protocol.BftProtocolManager;
@@ -161,11 +169,17 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
     final BlockValidatorProvider readOnlyBlockValidatorProvider =
         BlockValidatorProvider.nonForkingValidatorProvider(
             blockchain, epochManager, bftBlockInterface);
-    return new ForkingValidatorProvider(
-        blockchain,
-        qbftForksSchedule,
-        readOnlyBlockValidatorProvider,
-        transactionValidatorProvider);
+
+    // final ValidatorProvider baseValidatorProvider =
+    // new ForkingValidatorProvider(
+    //     blockchain,
+    //     qbftForksSchedule,
+    //     readOnlyBlockValidatorProvider,
+    //     transactionValidatorProvider);
+        //replaced
+
+return createReputationValidatorProvider(blockchain, baseValidatorProvider);
+
   }
 
   @Override
@@ -231,8 +245,9 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
     final QbftBlockInterface qbftBlockInterface = new QbftBlockInterfaceAdaptor(bftBlockInterface);
 
-    final ProposerSelector proposerSelector = 
-        new BftProposerSelector(blockchain, bftBlockInterface, true, validatorProvider);
+   final ProposerSelector proposerSelector =
+    new ReputationProposerSelector(blockchain, bftBlockInterface, validatorProvider);
+
 
         // this will be replaced too
 
@@ -425,10 +440,29 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
         new TransactionValidatorProvider(
             blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
 
-    final ValidatorProvider validatorProvider =
-        new ForkingValidatorProvider(
-            blockchain, qbftForksSchedule, blockValidatorProvider, transactionValidatorProvider);
-            // this will be replaced
+  final ReputationSelectionConfig reputationConfig =
+   new ReputationSelectionConfig();
+
+final ReputationCandidateProvider candidateProvider =
+   new StaticReputationCandidateProvider(reputationConfig);
+
+final ParticipationBalanceTracker participationBalanceTracker =
+   new ParticipationBalanceTracker(reputationConfig);
+
+final ReputationScoreCalculator scoreCalculator =
+   new ReputationScoreCalculator(reputationConfig, participationBalanceTracker);
+
+final WeightedValidatorSelector weightedValidatorSelector =
+   new WeightedValidatorSelector(reputationConfig, scoreCalculator);
+
+final ValidatorProvider validatorProvider =
+   new ReputationValidatorProvider(
+       blockchain,
+       candidateProvider,
+       weightedValidatorSelector);
+
+
+            // replaced
 
     return new BftContext(validatorProvider, epochManager, bftBlockInterface);
   }
@@ -465,4 +499,20 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
                 (block.getHeader().getGasUsed() * 100.0) / block.getHeader().getGasLimit(),
                 block.getHash().getBytes().toHexString()));
   }
+
+
+  private ValidatorProvider createReputationValidatorProvider(
+    final Blockchain blockchain, final ValidatorProvider baseValidatorProvider) {
+  final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
+  final ParticipationBalanceTracker participationBalanceTracker =
+      new ParticipationBalanceTracker(reputationConfig);
+  final ReputationScoreCalculator scoreCalculator =
+      new ReputationScoreCalculator(reputationConfig, participationBalanceTracker);
+  final WeightedValidatorSelector weightedValidatorSelector =
+      new WeightedValidatorSelector(reputationConfig, scoreCalculator);
+
+  return new ReputationValidatorProvider(
+      blockchain, baseValidatorProvider, weightedValidatorSelector);
+}
+
 }
