@@ -119,6 +119,12 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+//new imports:
+import org.hyperledger.besu.consensus.qbft.validator.ReputationCandidateProvider;
+import org.hyperledger.besu.consensus.qbft.validator.StaticReputationCandidateProvider;
+import org.hyperledger.besu.consensus.qbft.validator.ValidatorMetricsProvider;
+import org.hyperledger.besu.consensus.qbft.validator.StaticValidatorMetricsProvider;
 /** The Qbft Besu controller builder. */
 public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
@@ -159,28 +165,9 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
         bftConfigOptions);
   }
 
-  private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain blockchain) {
-    checkNotNull(
-        transactionValidatorProvider, "transactionValidatorProvider should have been initialised");
-    final long startBlock =
-        qbftConfig.getStartBlock().isPresent() ? qbftConfig.getStartBlock().getAsLong() : 0;
-    final EpochManager epochManager = new EpochManager(qbftConfig.getEpochLength(), startBlock);
-    // Must create our own voteTallyCache as using this would pollute the main voteTallyCache
-    final BlockValidatorProvider readOnlyBlockValidatorProvider =
-        BlockValidatorProvider.nonForkingValidatorProvider(
-            blockchain, epochManager, bftBlockInterface);
-
-    // final ValidatorProvider baseValidatorProvider =
-    // new ForkingValidatorProvider(
-    //     blockchain,
-    //     qbftForksSchedule,
-    //     readOnlyBlockValidatorProvider,
-    //     transactionValidatorProvider);
-        //replaced
-
-return createReputationValidatorProvider(blockchain, baseValidatorProvider);
-
-  }
+private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain blockchain) {
+  return createReputationValidatorProvider(blockchain);
+}
 
   @Override
   protected SubProtocolConfiguration createSubProtocolConfiguration(
@@ -245,11 +232,11 @@ return createReputationValidatorProvider(blockchain, baseValidatorProvider);
 
     final QbftBlockInterface qbftBlockInterface = new QbftBlockInterfaceAdaptor(bftBlockInterface);
 
-   final ProposerSelector proposerSelector =
-    new ReputationProposerSelector(blockchain, bftBlockInterface, validatorProvider);
+  final ProposerSelector proposerSelector =
+    new ReputationProposerSelector(blockchain, validatorProvider);
 
 
-        // this will be replaced too
+        // replaced on 18/6/2026
 
     // NOTE: peers should not be used for accessing the network as it does not enforce the
     // "only send once" filter applied by the UniqueMessageMulticaster.
@@ -440,29 +427,10 @@ return createReputationValidatorProvider(blockchain, baseValidatorProvider);
         new TransactionValidatorProvider(
             blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
 
-  final ReputationSelectionConfig reputationConfig =
-   new ReputationSelectionConfig();
+ final ValidatorProvider validatorProvider =
+    createReputationValidatorProvider(blockchain);
 
-final ReputationCandidateProvider candidateProvider =
-   new StaticReputationCandidateProvider(reputationConfig);
-
-final ParticipationBalanceTracker participationBalanceTracker =
-   new ParticipationBalanceTracker(reputationConfig);
-
-final ReputationScoreCalculator scoreCalculator =
-   new ReputationScoreCalculator(reputationConfig, participationBalanceTracker);
-
-final WeightedValidatorSelector weightedValidatorSelector =
-   new WeightedValidatorSelector(reputationConfig, scoreCalculator);
-
-final ValidatorProvider validatorProvider =
-   new ReputationValidatorProvider(
-       blockchain,
-       candidateProvider,
-       weightedValidatorSelector);
-
-
-            // replaced
+            // replaced twice - 18-6-2026
 
     return new BftContext(validatorProvider, epochManager, bftBlockInterface);
   }
@@ -501,18 +469,35 @@ final ValidatorProvider validatorProvider =
   }
 
 
-  private ValidatorProvider createReputationValidatorProvider(
-    final Blockchain blockchain, final ValidatorProvider baseValidatorProvider) {
+private ValidatorProvider createReputationValidatorProvider(final Blockchain blockchain) {
   final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
+
+  final List<Address> allCandidates =
+      bftBlockInterface.validatorsInBlock(blockchain.getGenesisBlock().getHeader()).stream()
+          .sorted()
+          .toList();
+
+  final ReputationCandidateProvider candidateProvider =
+      new StaticReputationCandidateProvider(allCandidates);
+
+  final ValidatorMetricsProvider metricsProvider =
+      new StaticValidatorMetricsProvider();
+
   final ParticipationBalanceTracker participationBalanceTracker =
       new ParticipationBalanceTracker(reputationConfig);
+
   final ReputationScoreCalculator scoreCalculator =
-      new ReputationScoreCalculator(reputationConfig, participationBalanceTracker);
+      new ReputationScoreCalculator(
+          reputationConfig,
+          metricsProvider,
+          participationBalanceTracker);
+
   final WeightedValidatorSelector weightedValidatorSelector =
       new WeightedValidatorSelector(reputationConfig, scoreCalculator);
 
   return new ReputationValidatorProvider(
-      blockchain, baseValidatorProvider, weightedValidatorSelector);
-}
-
+      blockchain,
+      candidateProvider,
+      weightedValidatorSelector);
+}   // on 18-6-2026
 }
