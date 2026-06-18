@@ -37,7 +37,13 @@ public class ReputationProposerSelector implements ProposerSelector {
   @Override
   public Address selectProposerForRound(final ConsensusRoundIdentifier roundIdentifier) {
     final Collection<Address> validators =
-        validatorProvider.getValidatorsAfterBlock(blockchain.getChainHeadHeader());
+      final long parentBlockNumber = roundIdentifier.getSequenceNumber() - 1;
+
+final Collection<Address> validators =
+    blockchain
+        .getBlockHeader(parentBlockNumber)
+        .map(validatorProvider::getValidatorsAfterBlock)
+        .orElseGet(() -> validatorProvider.getValidatorsAtHead());
 
     final List<Address> committee = new ArrayList<>(validators);
     committee.sort(Address::compareTo);
