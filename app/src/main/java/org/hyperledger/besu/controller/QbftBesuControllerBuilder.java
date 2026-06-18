@@ -14,13 +14,8 @@
  */
 package org.hyperledger.besu.controller;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.hyperledger.besu.config.BftConfigOptions;
-import org.hyperledger.besu.config.BftFork;
 import org.hyperledger.besu.config.QbftConfigOptions;
-import org.hyperledger.besu.config.QbftFork;
-import org.hyperledger.besu.consensus.common.BftValidatorOverrides;
 import org.hyperledger.besu.consensus.common.EpochManager;
 import org.hyperledger.besu.consensus.common.ForksSchedule;
 import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
@@ -37,22 +32,13 @@ import org.hyperledger.besu.consensus.common.bft.MessageTracker;
 import org.hyperledger.besu.consensus.common.bft.RoundTimer;
 import org.hyperledger.besu.consensus.common.bft.UniqueMessageMulticaster;
 import org.hyperledger.besu.consensus.common.bft.blockcreation.BftMiningCoordinator;
-// import org.hyperledger.besu.consensus.common.bft.blockcreation.BftProposerSelector;
-// new added:
-import org.hyperledger.besu.consensus.common.bft.blockcreation.ReputationProposerSelector;
-import org.hyperledger.besu.consensus.qbft.validator.ParticipationBalanceTracker;
-import org.hyperledger.besu.consensus.qbft.validator.ReputationScoreCalculator;
-import org.hyperledger.besu.consensus.qbft.validator.ReputationSelectionConfig;
-import org.hyperledger.besu.consensus.qbft.validator.ReputationValidatorProvider;
-import org.hyperledger.besu.consensus.qbft.validator.WeightedValidatorSelector;
-//new add ends
 import org.hyperledger.besu.consensus.common.bft.blockcreation.ProposerSelector;
+import org.hyperledger.besu.consensus.common.bft.blockcreation.ReputationProposerSelector;
 import org.hyperledger.besu.consensus.common.bft.network.ValidatorPeers;
 import org.hyperledger.besu.consensus.common.bft.protocol.BftProtocolManager;
 import org.hyperledger.besu.consensus.common.bft.statemachine.BftEventHandler;
 import org.hyperledger.besu.consensus.common.bft.statemachine.FutureMessageBuffer;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
-import org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidatorProvider;
 import org.hyperledger.besu.consensus.qbft.FutureMessageSynchronizerHandler;
 import org.hyperledger.besu.consensus.qbft.QbftExtraDataCodec;
 import org.hyperledger.besu.consensus.qbft.QbftForksSchedulesFactory;
@@ -84,10 +70,18 @@ import org.hyperledger.besu.consensus.qbft.core.validation.MessageValidatorFacto
 import org.hyperledger.besu.consensus.qbft.jsonrpc.QbftJsonRpcMethods;
 import org.hyperledger.besu.consensus.qbft.network.QbftGossiperImpl;
 import org.hyperledger.besu.consensus.qbft.protocol.Istanbul100SubProtocol;
-import org.hyperledger.besu.consensus.qbft.validator.ForkingValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.validator.ParticipationBalanceTracker;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationCandidateProvider;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationScoreCalculator;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationSelectionConfig;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.validator.StaticReputationCandidateProvider;
+import org.hyperledger.besu.consensus.qbft.validator.StaticValidatorMetricsProvider;
 import org.hyperledger.besu.consensus.qbft.validator.TransactionValidatorProvider;
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorContractController;
+import org.hyperledger.besu.consensus.qbft.validator.ValidatorMetricsProvider;
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorModeTransitionLogger;
+import org.hyperledger.besu.consensus.qbft.validator.WeightedValidatorSelector;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.methods.JsonRpcMethods;
@@ -110,21 +104,12 @@ import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.util.Subscribers;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-//new imports:
-import org.hyperledger.besu.consensus.qbft.validator.ReputationCandidateProvider;
-import org.hyperledger.besu.consensus.qbft.validator.StaticReputationCandidateProvider;
-import org.hyperledger.besu.consensus.qbft.validator.ValidatorMetricsProvider;
-import org.hyperledger.besu.consensus.qbft.validator.StaticValidatorMetricsProvider;
 /** The Qbft Besu controller builder. */
 public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
@@ -133,7 +118,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;
   private ValidatorPeers peers;
-  private TransactionValidatorProvider transactionValidatorProvider;
+  //   private TransactionValidatorProvider transactionValidatorProvider;
   private BftConfigOptions bftConfigOptions;
   private QbftExtraDataCodec qbftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
@@ -165,9 +150,9 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
         bftConfigOptions);
   }
 
-private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain blockchain) {
-  return createReputationValidatorProvider(blockchain);
-}
+  private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain blockchain) {
+    return createReputationValidatorProvider(blockchain);
+  }
 
   @Override
   protected SubProtocolConfiguration createSubProtocolConfiguration(
@@ -232,11 +217,10 @@ private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain block
 
     final QbftBlockInterface qbftBlockInterface = new QbftBlockInterfaceAdaptor(bftBlockInterface);
 
-  final ProposerSelector proposerSelector =
-    new ReputationProposerSelector(blockchain, validatorProvider);
+    final ProposerSelector proposerSelector =
+        new ReputationProposerSelector(blockchain, validatorProvider);
 
-
-        // replaced on 18/6/2026
+    // replaced on 18/6/2026
 
     // NOTE: peers should not be used for accessing the network as it does not enforce the
     // "only send once" filter applied by the UniqueMessageMulticaster.
@@ -417,40 +401,42 @@ private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain block
         qbftConfig.getStartBlock().isPresent() ? qbftConfig.getStartBlock().getAsLong() : 0;
     final EpochManager epochManager = new EpochManager(qbftConfig.getEpochLength(), startBlock);
 
-    final BftValidatorOverrides validatorOverrides =
-        convertBftForks(genesisConfigOptions.getTransitions().getQbftForks());
-    final BlockValidatorProvider blockValidatorProvider =
-        BlockValidatorProvider.forkingValidatorProvider(
-            blockchain, epochManager, bftBlockInterface, validatorOverrides);
+    // final BftValidatorOverrides validatorOverrides =
+    //     convertBftForks(genesisConfigOptions.getTransitions().getQbftForks());
+    // final BlockValidatorProvider blockValidatorProvider =
+    //     BlockValidatorProvider.forkingValidatorProvider(
+    //         blockchain, epochManager, bftBlockInterface, validatorOverrides);
 
-    transactionValidatorProvider =
-        new TransactionValidatorProvider(
-            blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
+    // transactionValidatorProvider =
+    //     new TransactionValidatorProvider(
+    //         blockchain, new ValidatorContractController(transactionSimulator),
+    // qbftForksSchedule);
+    new TransactionValidatorProvider(
+        blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
 
- final ValidatorProvider validatorProvider =
-    createReputationValidatorProvider(blockchain);
+    final ValidatorProvider validatorProvider = createReputationValidatorProvider(blockchain);
 
-            // replaced twice - 18-6-2026
+    // replaced twice - 18-6-2026
 
     return new BftContext(validatorProvider, epochManager, bftBlockInterface);
   }
 
-  private BftValidatorOverrides convertBftForks(final List<QbftFork> bftForks) {
-    final Map<Long, List<Address>> result = new HashMap<>();
+  //   private BftValidatorOverrides convertBftForks(final List<QbftFork> bftForks) {
+  //     final Map<Long, List<Address>> result = new HashMap<>();
 
-    for (final BftFork fork : bftForks) {
-      fork.getValidators()
-          .ifPresent(
-              validators ->
-                  result.put(
-                      fork.getForkBlock(),
-                      validators.stream()
-                          .map(Address::fromHexString)
-                          .collect(Collectors.toList())));
-    }
+  //     for (final BftFork fork : bftForks) {
+  //       fork.getValidators()
+  //           .ifPresent(
+  //               validators ->
+  //                   result.put(
+  //                       fork.getForkBlock(),
+  //                       validators.stream()
+  //                           .map(Address::fromHexString)
+  //                           .collect(Collectors.toList())));
+  //     }
 
-    return new BftValidatorOverrides(result);
-  }
+  //     return new BftValidatorOverrides(result);
+  //   }
 
   private static MinedBlockObserver blockLogger(
       final TransactionPool transactionPool, final Address localAddress) {
@@ -468,36 +454,30 @@ private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain block
                 block.getHash().getBytes().toHexString()));
   }
 
+  private ValidatorProvider createReputationValidatorProvider(final Blockchain blockchain) {
+    final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
 
-private ValidatorProvider createReputationValidatorProvider(final Blockchain blockchain) {
-  final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
+    final List<Address> allCandidates =
+        bftBlockInterface.validatorsInBlock(blockchain.getGenesisBlock().getHeader()).stream()
+            .sorted()
+            .toList();
 
-  final List<Address> allCandidates =
-      bftBlockInterface.validatorsInBlock(blockchain.getGenesisBlock().getHeader()).stream()
-          .sorted()
-          .toList();
+    final ReputationCandidateProvider candidateProvider =
+        new StaticReputationCandidateProvider(allCandidates);
 
-  final ReputationCandidateProvider candidateProvider =
-      new StaticReputationCandidateProvider(allCandidates);
+    final ValidatorMetricsProvider metricsProvider = new StaticValidatorMetricsProvider();
 
-  final ValidatorMetricsProvider metricsProvider =
-      new StaticValidatorMetricsProvider();
+    final ParticipationBalanceTracker participationBalanceTracker =
+        new ParticipationBalanceTracker(reputationConfig);
 
-  final ParticipationBalanceTracker participationBalanceTracker =
-      new ParticipationBalanceTracker(reputationConfig);
+    final ReputationScoreCalculator scoreCalculator =
+        new ReputationScoreCalculator(
+            reputationConfig, metricsProvider, participationBalanceTracker);
 
-  final ReputationScoreCalculator scoreCalculator =
-      new ReputationScoreCalculator(
-          reputationConfig,
-          metricsProvider,
-          participationBalanceTracker);
+    final WeightedValidatorSelector weightedValidatorSelector =
+        new WeightedValidatorSelector(reputationConfig, scoreCalculator);
 
-  final WeightedValidatorSelector weightedValidatorSelector =
-      new WeightedValidatorSelector(reputationConfig, scoreCalculator);
-
-  return new ReputationValidatorProvider(
-      blockchain,
-      candidateProvider,
-      weightedValidatorSelector);
-}   // on 18-6-2026
+    return new ReputationValidatorProvider(
+        blockchain, candidateProvider, weightedValidatorSelector);
+  } // on 18-6-2026
 }
