@@ -151,8 +151,12 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
   }
 
   private ValidatorProvider createReadOnlyValidatorProvider(final Blockchain blockchain) {
-    return createReputationValidatorProvider(blockchain);
-  }
+  final TransactionValidatorProvider transactionValidatorProvider =
+      new TransactionValidatorProvider(
+          blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
+
+  return createReputationValidatorProvider(blockchain, transactionValidatorProvider);
+}
 
   @Override
   protected SubProtocolConfiguration createSubProtocolConfiguration(
@@ -411,10 +415,17 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
     //     new TransactionValidatorProvider(
     //         blockchain, new ValidatorContractController(transactionSimulator),
     // qbftForksSchedule);
-    new TransactionValidatorProvider(
-        blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
+    // new TransactionValidatorProvider(
+    //     blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
+final ValidatorProvider blockValidatorProvider =
+    org.hyperledger.besu.consensus.common.validator.blockbased.BlockValidatorProvider
+        .nonForkingValidatorProvider(
+            blockchain,
+            epochManager,
+            bftBlockInterface);
 
-    final ValidatorProvider validatorProvider = createReputationValidatorProvider(blockchain);
+final ValidatorProvider validatorProvider =
+    createReputationValidatorProvider(blockchain, blockValidatorProvider);
 
     // replaced twice - 18-6-2026
 
@@ -454,7 +465,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
                 block.getHash().getBytes().toHexString()));
   }
 
-  private ValidatorProvider createReputationValidatorProvider(final Blockchain blockchain) {
+  private ValidatorProvider createReputationValidatorProvider(final Blockchain blockchain,
+    final ValidatorProvider delegate) {
     final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
 
     final List<Address> allCandidates =
@@ -478,6 +490,6 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
         new WeightedValidatorSelector(reputationConfig, scoreCalculator);
 
     return new ReputationValidatorProvider(
-        blockchain, candidateProvider, weightedValidatorSelector);
+        blockchain, candidateProvider, weightedValidatorSelector, delegate);
   } // on 18-6-2026
 }

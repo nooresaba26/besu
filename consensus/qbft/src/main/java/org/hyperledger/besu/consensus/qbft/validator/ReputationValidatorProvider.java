@@ -34,18 +34,21 @@ public class ReputationValidatorProvider implements ValidatorProvider {
   private final Blockchain blockchain;
   private final WeightedValidatorSelector selector;
   private final ReputationCandidateProvider candidateProvider;
+  private final ValidatorProvider delegate;
 
   private final Cache<Hash, Collection<Address>> committeeCache =
       CacheBuilder.newBuilder().maximumSize(256).build();
 
   public ReputationValidatorProvider(
-      final Blockchain blockchain,
-      final ReputationCandidateProvider candidateProvider,
-      final WeightedValidatorSelector selector) {
-    this.blockchain = blockchain;
-    this.candidateProvider = candidateProvider;
-    this.selector = selector;
-  }
+    final Blockchain blockchain,
+    final ReputationCandidateProvider candidateProvider,
+    final WeightedValidatorSelector selector,
+    final ValidatorProvider delegate) {
+  this.blockchain = blockchain;
+  this.candidateProvider = candidateProvider;
+  this.selector = selector;
+  this.delegate = delegate;
+}
 
   @Override
   public Collection<Address> getValidatorsAtHead() {
@@ -82,13 +85,13 @@ public class ReputationValidatorProvider implements ValidatorProvider {
         .orElseGet(() -> candidateProvider.getCandidatesAfterBlock(header));
   }
 
-  @Override
-  public Optional<VoteProvider> getVoteProviderAtHead() {
-    return Optional.empty();
-  }
+ @Override
+public Optional<VoteProvider> getVoteProviderAtHead() {
+  return delegate.getVoteProviderAtHead();
+}
 
-  @Override
-  public Optional<VoteProvider> getVoteProviderAfterBlock(final BlockHeader header) {
-    return Optional.empty();
-  }
+@Override
+public Optional<VoteProvider> getVoteProviderAfterBlock(final BlockHeader header) {
+  return delegate.getVoteProviderAfterBlock(header);
+}
 }
