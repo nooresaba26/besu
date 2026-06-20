@@ -22,6 +22,7 @@ import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulatorResult;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,26 +32,21 @@ import org.apache.tuweni.bytes.Bytes;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Bool;
 import org.web3j.abi.datatypes.DynamicArray;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.generated.Uint256;
 
 /** The Validator contract controller. */
 public class ValidatorContractController {
-  /** The constant GET_VALIDATORS. */
   public static final String GET_VALIDATORS = "getValidators";
-
-  /** The constant CONTRACT_ERROR_MSG. */
+  public static final String GET_VALIDATOR_STATS = "getValidatorStats";
   public static final String CONTRACT_ERROR_MSG = "Failed validator smart contract call";
 
   private final TransactionSimulator transactionSimulator;
   private final Function getValidatorsFunction;
 
-  /**
-   * Instantiates a new Validator contract controller.
-   *
-   * @param transactionSimulator the transaction simulator
-   */
   public ValidatorContractController(final TransactionSimulator transactionSimulator) {
     this.transactionSimulator = transactionSimulator;
 
@@ -65,16 +61,31 @@ public class ValidatorContractController {
     }
   }
 
-  /**
-   * Gets validators.
-   *
-   * @param blockNumber the block number
-   * @param contractAddress the contract address
-   * @return the validators
-   */
   public Collection<Address> getValidators(final long blockNumber, final Address contractAddress) {
     return callFunction(blockNumber, getValidatorsFunction, contractAddress)
         .map(this::parseGetValidatorsResult)
+        .orElseThrow(() -> new IllegalStateException(CONTRACT_ERROR_MSG));
+  }
+
+  public ValidatorStats getValidatorStats(
+      final long blockNumber, final Address contractAddress, final Address validatorAddress) {
+    final Function function =
+        new Function(
+            GET_VALIDATOR_STATS,
+            List.of(new org.web3j.abi.datatypes.Address(validatorAddress.toHexString())),
+            List.of(
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Uint256>() {},
+                new TypeReference<Bool>() {}));
+
+    return callFunction(blockNumber, function, contractAddress)
+        .map(result -> parseGetValidatorStatsResult(result, function))
         .orElseThrow(() -> new IllegalStateException(CONTRACT_ERROR_MSG));
   }
 
@@ -86,6 +97,23 @@ public class ValidatorContractController {
     return addresses.stream()
         .map(a -> Address.fromHexString(a.getValue()))
         .collect(Collectors.toList());
+  }
+
+  @SuppressWarnings("rawtypes")
+  private ValidatorStats parseGetValidatorStatsResult(
+      final TransactionSimulatorResult result, final Function function) {
+    final List<Type> decoded = decodeResult(result, function);
+
+    return new ValidatorStats(
+        ((Uint256) decoded.get(0)).getValue(),
+        ((Uint256) decoded.get(1)).getValue(),
+        ((Uint256) decoded.get(2)).getValue(),
+        ((Uint256) decoded.get(3)).getValue(),
+        ((Uint256) decoded.get(4)).getValue(),
+        ((Uint256) decoded.get(5)).getValue(),
+        ((Uint256) decoded.get(6)).getValue(),
+        ((Uint256) decoded.get(7)).getValue(),
+        ((Bool) decoded.get(8)).getValue());
   }
 
   private Optional<TransactionSimulatorResult> callFunction(
@@ -100,8 +128,7 @@ public class ValidatorContractController {
   }
 
   @SuppressWarnings("rawtypes")
-  private List<Type> decodeResult(
-      final TransactionSimulatorResult result, final Function function) {
+  private List<Type> decodeResult(final TransactionSimulatorResult result, final Function function) {
     if (result.isSuccessful()) {
       final List<Type> decodedList =
           FunctionReturnDecoder.decode(
@@ -118,4 +145,15 @@ public class ValidatorContractController {
           "Failed validator smart contract call: " + result.getValidationResult());
     }
   }
+
+  public record ValidatorStats(
+      BigInteger observedBlocks,
+      BigInteger onlineBlocks,
+      BigInteger participatedRounds,
+      BigInteger successfulVotes,
+      BigInteger unsuccessfulVotes,
+      BigInteger selectedRounds,
+      BigInteger consecutiveParticipation,
+      BigInteger lastParticipatedBlock,
+      boolean active) {}
 }

@@ -103,6 +103,7 @@ import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.util.Subscribers;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationContractUpdateService;
 
 import java.time.Duration;
 import java.util.List;
@@ -115,6 +116,8 @@ import org.slf4j.LoggerFactory;
 public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(QbftBesuControllerBuilder.class);
+  private static final Address REPUTATION_CONTRACT_ADDRESS =
+    Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef");
   private BftEventQueue bftEventQueue;
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;
@@ -321,7 +324,14 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             bftEventQueue,
             syncState);
 
+final ReputationContractUpdateService reputationContractUpdateService =
+    new ReputationContractUpdateService(
+        blockchain,
+        validatorProvider,
+        localAddress,
+        REPUTATION_CONTRACT_ADDRESS);
     // Update the next block period in seconds according to the transition schedule
+
     protocolContext
         .getBlockchain()
         .observeBlockAdded(
@@ -337,6 +347,10 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
                       .getValue()
                       .getEmptyBlockPeriodSeconds());
             });
+            protocolContext
+    .getBlockchain()
+    .observeBlockAdded(
+        o -> reputationContractUpdateService.onFinalizedBlock(o.getHeader()));
 
     return miningCoordinator;
   }
@@ -479,7 +493,10 @@ final ValidatorProvider validatorProvider =
         new StaticReputationCandidateProvider(allCandidates);
 
 final ValidatorMetricsProvider metricsProvider =
-    new ContractValidatorMetricsProvider(new StaticValidatorMetricsProvider());
+   new ContractValidatorMetricsProvider(
+    new ValidatorContractController(transactionSimulator),
+    Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef"),
+    new StaticValidatorMetricsProvider());
 
     final ParticipationBalanceTracker participationBalanceTracker =
         new ParticipationBalanceTracker(reputationConfig);
