@@ -36,7 +36,19 @@ public class ReputationContractUpdateService {
   }
 
   public void onFinalizedBlock(final BlockHeader blockHeader) {
+    
+
+    if (blockHeader.getNumber() % 10 != 0) {
+      return;
+    }
+
     final Address proposer = proposerForBlock(blockHeader);
+
+    LOG.info(
+        "Block {} proposer={}, local={}",
+        blockHeader.getNumber(),
+        proposer,
+        localAddress);
 
     if (!localAddress.equals(proposer)) {
       return;
@@ -51,13 +63,13 @@ public class ReputationContractUpdateService {
         contractAddress,
         validators.size());
 
-        transactionSender.prepareRecordFinalizedBlockTransaction(
-    contractAddress,
-    blockHeader.getNumber(),
-    validators,
-    validators,
-    validators,
-    List.of());
+    transactionSender.prepareRecordFinalizedBlockTransaction(
+        contractAddress,
+        blockHeader.getNumber(),
+        validators,
+        validators,
+        validators,
+        List.of());
   }
 
   private Address proposerForBlock(final BlockHeader blockHeader) {

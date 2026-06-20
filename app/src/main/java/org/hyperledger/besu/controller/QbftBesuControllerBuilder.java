@@ -105,6 +105,8 @@ import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.util.Subscribers;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationContractUpdateService;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationContractTransactionSender;
+import org.hyperledger.besu.crypto.KeyPairUtil;
+import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 
 import java.time.Duration;
 import java.util.List;
@@ -330,7 +332,15 @@ final ReputationContractUpdateService reputationContractUpdateService =
         validatorProvider,
         localAddress,
         REPUTATION_CONTRACT_ADDRESS,
-        new ReputationContractTransactionSender());
+        new ReputationContractTransactionSender(
+    transactionPool,
+    new BlockchainQueries(
+        protocolSchedule,
+        blockchain,
+        protocolContext.getWorldStateArchive(),
+        miningConfiguration),
+    KeyPairUtil.load(KeyPairUtil.getDefaultKeyFile(dataDirectory)),
+    localAddress));
     // Update the next block period in seconds according to the transition schedule
 
     protocolContext

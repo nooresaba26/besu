@@ -1,17 +1,24 @@
 package org.hyperledger.besu.consensus.qbft.validator;
 
+import org.hyperledger.besu.crypto.KeyPair;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
+import org.hyperledger.besu.ethereum.core.Transaction;
+import org.hyperledger.besu.datatypes.Wei;
+import org.hyperledger.besu.ethereum.eth.transactions.TransactionPool;
+import org.hyperledger.besu.ethereum.mainnet.ValidationResult;
+import org.hyperledger.besu.ethereum.transaction.TransactionInvalidReason;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.OptionalLong;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.web3j.abi.FunctionEncoder;
-import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.DynamicArray;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.generated.Uint256;
@@ -22,6 +29,25 @@ public class ReputationContractTransactionSender {
       LoggerFactory.getLogger(ReputationContractTransactionSender.class);
 
   private static final String RECORD_FINALIZED_BLOCK = "recordFinalizedBlock";
+
+  private static final long GAS_LIMIT = 3_000_000L;
+  private static final Wei GAS_PRICE = Wei.of(1_000_000_000L);
+
+  private final TransactionPool transactionPool;
+  private final BlockchainQueries blockchainQueries;
+  private final KeyPair localKeyPair;
+  private final Address localAddress;
+
+  public ReputationContractTransactionSender(
+      final TransactionPool transactionPool,
+      final BlockchainQueries blockchainQueries,
+      final KeyPair localKeyPair,
+      final Address localAddress) {
+    this.transactionPool = transactionPool;
+    this.blockchainQueries = blockchainQueries;
+    this.localKeyPair = localKeyPair;
+    this.localAddress = localAddress;
+  }
 
   public Bytes buildRecordFinalizedBlockPayload(
       final long blockNumber,
@@ -60,11 +86,46 @@ public class ReputationContractTransactionSender {
             successfulVoters,
             unsuccessfulVoters);
 
-    LOG.info(
-        "Prepared recordFinalizedBlock transaction for contract {} at block {} with payload size {} bytes",
-        contractAddress,
-        blockNumber,
-        payload.size());
+    final long nonce = getNextNonce();
+
+    final Transaction transaction =
+        Transaction.builder()
+            .nonce(nonce)
+            .gasPrice(GAS_PRICE)
+            .gasLimit(GAS_LIMIT)
+            .to(contractAddress)
+            .value(Wei.ZERO)
+            .payload(payload)
+            .guessType()
+            .signAndBuild(localKeyPair);
+
+    final ValidationResult<TransactionInvalidReason> result =
+        transactionPool.addTransactionViaApi(transaction);
+
+    if (result.isValid()) {
+      LOG.info(
+          "Submitted recordFinalizedBlock transaction {} for block {} from {} to contract {}",
+          transaction.getHash(),
+          blockNumber,
+          localAddress,
+          contractAddress);
+    } else {
+      LOG.warn(
+          "Failed to submit recordFinalizedBlock transaction for block {} from {}: {}",
+          blockNumber,
+          localAddress,
+          result.getInvalidReason());
+    }
+  }
+
+  private long getNextNonce() {
+    final OptionalLong pendingNonce = transactionPool.getNextNonceForSender(localAddress);
+
+    if (pendingNonce.isPresent()) {
+      return pendingNonce.getAsLong();
+    }
+
+    return blockchainQueries.getTransactionCount(localAddress);
   }
 
   private DynamicArray<org.web3j.abi.datatypes.Address> toAddressArray(
