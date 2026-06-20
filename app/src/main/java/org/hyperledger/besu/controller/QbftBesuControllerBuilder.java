@@ -82,6 +82,7 @@ import org.hyperledger.besu.consensus.qbft.validator.ValidatorContractController
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorMetricsProvider;
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorModeTransitionLogger;
 import org.hyperledger.besu.consensus.qbft.validator.WeightedValidatorSelector;
+import org.hyperledger.besu.consensus.qbft.validator.ContractValidatorMetricsProvider;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
 import org.hyperledger.besu.ethereum.api.jsonrpc.methods.JsonRpcMethods;
@@ -477,7 +478,8 @@ final ValidatorProvider validatorProvider =
     final ReputationCandidateProvider candidateProvider =
         new StaticReputationCandidateProvider(allCandidates);
 
-    final ValidatorMetricsProvider metricsProvider = new StaticValidatorMetricsProvider();
+final ValidatorMetricsProvider metricsProvider =
+    new ContractValidatorMetricsProvider(new StaticValidatorMetricsProvider());
 
     final ParticipationBalanceTracker participationBalanceTracker =
         new ParticipationBalanceTracker(reputationConfig);
