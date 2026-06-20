@@ -104,6 +104,7 @@ import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.util.Subscribers;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationContractUpdateService;
+import org.hyperledger.besu.consensus.qbft.validator.ReputationContractTransactionSender;
 
 import java.time.Duration;
 import java.util.List;
@@ -117,7 +118,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(QbftBesuControllerBuilder.class);
   private static final Address REPUTATION_CONTRACT_ADDRESS =
-    Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef");
+    Address.fromHexString("0x95d6a2eD2b326170BF524f712d3ACBf5540B4De3");
   private BftEventQueue bftEventQueue;
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;
@@ -323,13 +324,13 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             blockchain,
             bftEventQueue,
             syncState);
-
 final ReputationContractUpdateService reputationContractUpdateService =
     new ReputationContractUpdateService(
         blockchain,
         validatorProvider,
         localAddress,
-        REPUTATION_CONTRACT_ADDRESS);
+        REPUTATION_CONTRACT_ADDRESS,
+        new ReputationContractTransactionSender());
     // Update the next block period in seconds according to the transition schedule
 
     protocolContext

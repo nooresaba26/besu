@@ -20,16 +20,19 @@ public class ReputationContractUpdateService {
   private final ValidatorProvider validatorProvider;
   private final Address localAddress;
   private final Address contractAddress;
+  private final ReputationContractTransactionSender transactionSender;
 
   public ReputationContractUpdateService(
       final Blockchain blockchain,
       final ValidatorProvider validatorProvider,
       final Address localAddress,
-      final Address contractAddress) {
+      final Address contractAddress,
+      final ReputationContractTransactionSender transactionSender) {
     this.blockchain = blockchain;
     this.validatorProvider = validatorProvider;
     this.localAddress = localAddress;
     this.contractAddress = contractAddress;
+    this.transactionSender = transactionSender;
   }
 
   public void onFinalizedBlock(final BlockHeader blockHeader) {
@@ -47,6 +50,14 @@ public class ReputationContractUpdateService {
         blockHeader.getNumber(),
         contractAddress,
         validators.size());
+
+        transactionSender.prepareRecordFinalizedBlockTransaction(
+    contractAddress,
+    blockHeader.getNumber(),
+    validators,
+    validators,
+    validators,
+    List.of());
   }
 
   private Address proposerForBlock(final BlockHeader blockHeader) {
