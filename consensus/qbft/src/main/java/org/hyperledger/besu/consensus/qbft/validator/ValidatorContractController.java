@@ -40,7 +40,7 @@ import org.web3j.abi.datatypes.generated.Uint256;
 
 /** The Validator contract controller. */
 public class ValidatorContractController {
-  public static final String GET_VALIDATORS = "getValidators";
+  public static final String GET_VALIDATORS = "getActiveValidators";
   public static final String GET_VALIDATOR_STATS = "getValidatorStats";
   public static final String CONTRACT_ERROR_MSG = "Failed validator smart contract call";
 

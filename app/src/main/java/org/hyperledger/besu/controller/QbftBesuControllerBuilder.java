@@ -107,6 +107,7 @@ import org.hyperledger.besu.consensus.qbft.validator.ReputationContractUpdateSer
 import org.hyperledger.besu.consensus.qbft.validator.ReputationContractTransactionSender;
 import org.hyperledger.besu.crypto.KeyPairUtil;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
+import org.hyperledger.besu.consensus.qbft.validator.ContractReputationCandidateProvider;
 
 import java.time.Duration;
 import java.util.List;
@@ -500,13 +501,22 @@ final ValidatorProvider validatorProvider =
             .sorted()
             .toList();
 
-    final ReputationCandidateProvider candidateProvider =
-        new StaticReputationCandidateProvider(allCandidates);
+    final ReputationCandidateProvider fallbackCandidateProvider =
+    new StaticReputationCandidateProvider(allCandidates);
+
+final ValidatorContractController validatorContractController =
+    new ValidatorContractController(transactionSimulator);
+
+final ReputationCandidateProvider candidateProvider =
+    new ContractReputationCandidateProvider(
+        validatorContractController,
+        REPUTATION_CONTRACT_ADDRESS,
+        fallbackCandidateProvider);
 
 final ValidatorMetricsProvider metricsProvider =
    new ContractValidatorMetricsProvider(
     new ValidatorContractController(transactionSimulator),
-    Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef"),
+    REPUTATION_CONTRACT_ADDRESS,
     new StaticValidatorMetricsProvider());
 
     final ParticipationBalanceTracker participationBalanceTracker =
