@@ -30,8 +30,8 @@ private final double successThreshold;
 private final double failureThreshold;
 
   public ReputationSelectionConfig() {
-    this.targetCommitteeSize = 10;
-    this.minimumCommitteeSize = 4;
+    this.targetCommitteeSize = 10; // temporary
+    this.minimumCommitteeSize = 4;  // temporary
     this.ticketScalingFactor = 100;
     this.alpha = 0.3;
     this.beta = 0.3;

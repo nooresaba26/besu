@@ -29,7 +29,9 @@ import java.util.concurrent.ExecutionException;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+
 public class ReputationValidatorProvider implements ValidatorProvider {
+  
 
   private final Blockchain blockchain;
   private final WeightedValidatorSelector selector;
@@ -61,11 +63,14 @@ public class ReputationValidatorProvider implements ValidatorProvider {
       return committeeCache.get(
           parentHeader.getHash(),
           () -> {
+           System.out.println(
+    "ReputationValidatorProvider invoked for block " + parentHeader.getNumber());
             final Collection<Address> candidates =
                 candidateProvider.getCandidatesAfterBlock(parentHeader);
-
+ System.out.println("Candidate count = " + candidates.size());
             final List<Address> selected = selector.selectValidators(candidates, parentHeader);
-
+System.out.println("Selected count = " + selected.size());
+System.out.println("Selected validators = " + selected);
             return List.copyOf(selected);
           });
     } catch (final ExecutionException e) {
