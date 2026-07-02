@@ -526,8 +526,8 @@ final ParticipationBalanceTracker participationBalanceTracker =
         REPUTATION_CONTRACT_ADDRESS);
 
     final ReputationScoreCalculator scoreCalculator =
-        new ReputationScoreCalculator(
-            reputationConfig, metricsProvider, participationBalanceTracker);
+      new ReputationScoreCalculator(
+    reputationConfig, metricsProvider, participationBalanceTracker, blockchain);
 
     final WeightedValidatorSelector weightedValidatorSelector =
         new WeightedValidatorSelector(reputationConfig, scoreCalculator);

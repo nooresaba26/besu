@@ -24,6 +24,10 @@ public class ReputationSelectionConfig {
   private final double gamma;
   private final double lambda;
   private final double delta;
+  private final int timeDecayWindow;
+  private final double uptimeThreshold;
+private final double successThreshold;
+private final double failureThreshold;
 
   public ReputationSelectionConfig() {
     this.targetCommitteeSize = 10;
@@ -34,6 +38,10 @@ public class ReputationSelectionConfig {
     this.gamma = 0.4;
     this.lambda = 0.8;
     this.delta = 0.7;
+    this.timeDecayWindow = 5;
+    this.uptimeThreshold = 0.586;
+this.successThreshold = 0.62;
+this.failureThreshold = 0.35;
   }
 
   public int getTargetCommitteeSize() {
@@ -67,4 +75,19 @@ public class ReputationSelectionConfig {
   public double getDelta() {
     return delta;
   }
+
+  public int getTimeDecayWindow() {
+  return timeDecayWindow;
+}
+public double getUptimeThreshold() {
+  return uptimeThreshold;
+}
+
+public double getSuccessThreshold() {
+  return successThreshold;
+}
+
+public double getFailureThreshold() {
+  return failureThreshold;
+}
 }
