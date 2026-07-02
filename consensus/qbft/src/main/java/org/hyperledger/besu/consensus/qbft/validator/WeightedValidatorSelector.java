@@ -1,17 +1,3 @@
-/*
- * Copyright contributors to Besu.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- *
- * SPDX-License-Identifier: Apache-2.0
- */
 package org.hyperledger.besu.consensus.qbft.validator;
 
 import org.hyperledger.besu.datatypes.Address;
@@ -51,35 +37,76 @@ public class WeightedValidatorSelector {
       return sortedCandidates;
     }
 
-    final List<ScoredValidator> scoredValidators =
+    final List<TicketedValidator> ticketedValidators =
         sortedCandidates.stream()
-            .map(address -> score(address, parentHeader))
-            .sorted(
-                Comparator.comparingDouble(ScoredValidator::selectionKey)
-                    .reversed()
-                    .thenComparing(ScoredValidator::address))
-            .limit(targetSize)
-            .sorted(Comparator.comparing(ScoredValidator::address))
+            .map(address -> ticket(address, parentHeader))
+            .filter(ticketedValidator -> ticketedValidator.tickets() > 0)
             .toList();
 
-    return scoredValidators.stream().map(ScoredValidator::address).toList();
+    if (ticketedValidators.isEmpty()) {
+      return sortedCandidates.stream().limit(config.getMinimumCommitteeSize()).toList();
+    }
+
+    final List<SelectedValidator> selectedValidators =
+        ticketedValidators.stream()
+            .map(ticketedValidator -> select(ticketedValidator, parentHeader))
+            .filter(selectedValidator -> selectedValidator.winningTickets() > 0)
+            .sorted(
+                Comparator.comparingInt(SelectedValidator::winningTickets)
+                    .reversed()
+                    .thenComparing(SelectedValidator::address))
+            .limit(targetSize)
+            .sorted(Comparator.comparing(SelectedValidator::address))
+            .toList();
+
+    if (selectedValidators.size() >= config.getMinimumCommitteeSize()) {
+      return selectedValidators.stream().map(SelectedValidator::address).toList();
+    }
+
+    return ticketedValidators.stream()
+        .sorted(
+            Comparator.comparingInt(TicketedValidator::tickets)
+                .reversed()
+                .thenComparing(TicketedValidator::address))
+        .limit(config.getMinimumCommitteeSize())
+        .map(TicketedValidator::address)
+        .sorted()
+        .toList();
   }
 
-  private ScoredValidator score(final Address address, final BlockHeader parentHeader) {
+  private TicketedValidator ticket(final Address address, final BlockHeader parentHeader) {
     final double reputationScore = scoreCalculator.calculateScore(address, parentHeader);
+    final int tickets =
+        Math.max(0, (int) Math.round(config.getTicketScalingFactor() * reputationScore));
 
-    final Hash randomHash =
-        Hash.hash(
-            Bytes.concatenate(
-                parentHeader.getHash().getBytes(),
-                address.getBytes(),
-                Bytes.ofUnsignedLong(parentHeader.getNumber() + 1)));
+    return new TicketedValidator(address, tickets);
+  }
 
-    final double randomValue = normalized(randomHash);
+  private SelectedValidator select(
+      final TicketedValidator validator, final BlockHeader parentHeader) {
+    int winningTickets = 0;
 
-    final double selectionKey = reputationScore * randomValue;
+    for (int ticketIndex = 0; ticketIndex < validator.tickets(); ticketIndex++) {
+      final Hash ticketHash =
+          Hash.hash(
+              Bytes.concatenate(
+                  parentHeader.getHash().getBytes(),
+                  validator.address().getBytes(),
+                  Bytes.ofUnsignedLong(parentHeader.getNumber() + 1),
+                  Bytes.ofUnsignedLong(ticketIndex)));
 
-    return new ScoredValidator(address, selectionKey);
+      final double randomValue = normalized(ticketHash);
+
+      if (randomValue < selectionProbability()) {
+        winningTickets++;
+      }
+    }
+
+    return new SelectedValidator(validator.address(), winningTickets);
+  }
+
+  private double selectionProbability() {
+    return Math.min(1.0, config.getTargetCommitteeSize() / (double) config.getTicketScalingFactor());
   }
 
   private double normalized(final Hash hash) {
@@ -91,5 +118,7 @@ public class WeightedValidatorSelector {
     return (value >>> 1) / (double) Long.MAX_VALUE;
   }
 
-  private record ScoredValidator(Address address, double selectionKey) {}
+  private record TicketedValidator(Address address, int tickets) {}
+
+  private record SelectedValidator(Address address, int winningTickets) {}
 }
