@@ -514,13 +514,16 @@ final ReputationCandidateProvider candidateProvider =
         fallbackCandidateProvider);
 
 final ValidatorMetricsProvider metricsProvider =
-   new ContractValidatorMetricsProvider(
-    new ValidatorContractController(transactionSimulator),
-    REPUTATION_CONTRACT_ADDRESS,
-    new StaticValidatorMetricsProvider());
+    new ContractValidatorMetricsProvider(
+        validatorContractController,
+        REPUTATION_CONTRACT_ADDRESS,
+        new StaticValidatorMetricsProvider());
 
-    final ParticipationBalanceTracker participationBalanceTracker =
-        new ParticipationBalanceTracker(reputationConfig);
+final ParticipationBalanceTracker participationBalanceTracker =
+    new ParticipationBalanceTracker(
+        reputationConfig,
+        validatorContractController,
+        REPUTATION_CONTRACT_ADDRESS);
 
     final ReputationScoreCalculator scoreCalculator =
         new ReputationScoreCalculator(
