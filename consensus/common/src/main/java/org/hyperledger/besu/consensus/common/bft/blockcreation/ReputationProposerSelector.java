@@ -51,7 +51,10 @@ public class ReputationProposerSelector implements ProposerSelector {
       throw new IllegalStateException("Reputation committee cannot be empty");
     }
 
-    final int index = Math.floorMod((int) roundIdentifier.getSequenceNumber(), committee.size());
+    final long rotation =
+    roundIdentifier.getSequenceNumber() + roundIdentifier.getRoundNumber();
+
+final int index = Math.floorMod((int) rotation, committee.size());
 
     return committee.get(index);
   }
