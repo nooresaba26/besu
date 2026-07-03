@@ -70,6 +70,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
   private final Clock clock;
   private final Function<ConsensusRoundIdentifier, RoundState> roundStateCreator;
   private final QbftFinalState finalState;
+ 
+  
 
   private Optional<PreparedCertificate> latestPreparedCertificate = Optional.empty();
   private Optional<QbftRound> currentRound = Optional.empty();
@@ -95,7 +97,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
       final Clock clock,
       final MessageValidatorFactory messageValidatorFactory,
       final MessageFactory messageFactory,
-      final QbftValidatorProvider validatorProvider) {
+      final QbftValidatorProvider validatorProvider,
+final OnlineValidatorTracker onlineValidatorTracker) {
     this.parentHeader = parentHeader;
     this.roundFactory = qbftRoundFactory;
     this.validatorProvider = validatorProvider;
@@ -105,6 +108,7 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
     this.clock = clock;
     this.roundChangeManager = roundChangeManager;
     this.finalState = finalState;
+   
 
     futureRoundProposalMessageValidator =
         messageValidatorFactory.createFutureRoundProposalMessageValidator(
@@ -113,9 +117,10 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
     roundStateCreator =
         (roundIdentifier) ->
             new RoundState(
-                roundIdentifier,
-                finalState.getQuorum(),
-                messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader));
+    roundIdentifier,
+    finalState.getQuorum(),
+    messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader),
+    onlineValidatorTracker);
 
     final long nextBlockHeight = parentHeader.getNumber() + 1;
     final ConsensusRoundIdentifier roundIdentifier =
@@ -156,7 +161,8 @@ public class QbftBlockHeightManager implements BaseQbftBlockHeightManager {
         clock,
         messageValidatorFactory,
         messageFactory,
-        validatorProvider);
+        validatorProvider,
+         new OnlineValidatorTracker());
     this.isEarlyRoundChangeEnabled = isEarlyRoundChangeEnabled;
   }
 

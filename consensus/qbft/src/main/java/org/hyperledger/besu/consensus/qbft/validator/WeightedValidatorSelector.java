@@ -36,11 +36,12 @@ public class WeightedValidatorSelector {
       return sortedCandidates;
     }
 
-    final int targetSize = Math.min(config.getTargetCommitteeSize(), sortedCandidates.size());
+    // final int targetSize = Math.min(config.getTargetCommitteeSize(), sortedCandidates.size());
 
-    if (sortedCandidates.size() <= targetSize) {
-      return sortedCandidates;
-    }
+   if (sortedCandidates.size() <= 4) {
+  LOG.info("Small local QBFT network detected. Returning all validators to preserve liveness: {}", sortedCandidates);
+  return sortedCandidates;
+}
 
     final List<TicketedValidator> ticketedValidators =
         sortedCandidates.stream()
@@ -60,13 +61,8 @@ final List<SelectedValidator> selectedValidators =
     ticketedValidators.stream()
         .map(ticketedValidator -> select(ticketedValidator, parentHeader, probability))
             .filter(selectedValidator -> selectedValidator.winningTickets() > 0)
-            .sorted(
-                Comparator.comparingInt(SelectedValidator::winningTickets)
-                    .reversed()
-                    .thenComparing(SelectedValidator::address))
-            .limit(targetSize)
             .sorted(Comparator.comparing(SelectedValidator::address))
-            .toList();
+.toList();
 
     if (selectedValidators.size() >= config.getMinimumCommitteeSize()) {
 
@@ -97,6 +93,9 @@ return fallbackCommittee;
   }
 
   private TicketedValidator ticket(final Address address, final BlockHeader parentHeader) {
+  if (!scoreCalculator.passesThresholds(address, parentHeader)) {
+  return new TicketedValidator(address, 0);
+}
     final double reputationScore = scoreCalculator.calculateScore(address, parentHeader);
     final int tickets =
         Math.max(0, (int) Math.round(config.getTicketScalingFactor() * reputationScore));
@@ -145,6 +144,7 @@ private SelectedValidator select(
     }
     return (value >>> 1) / (double) Long.MAX_VALUE;
   }
+ 
 
   private record TicketedValidator(Address address, int tickets) {}
 

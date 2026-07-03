@@ -9,8 +9,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.OnlineValidatorTracker;
 
 public class ReputationContractUpdateService {
 
@@ -21,26 +25,32 @@ public class ReputationContractUpdateService {
   private final Address localAddress;
   private final Address contractAddress;
   private final ReputationContractTransactionSender transactionSender;
+  private final BftBlockInterface bftBlockInterface;
+  private final OnlineValidatorTracker onlineValidatorTracker;
 
   public ReputationContractUpdateService(
       final Blockchain blockchain,
       final ValidatorProvider validatorProvider,
       final Address localAddress,
       final Address contractAddress,
-      final ReputationContractTransactionSender transactionSender) {
+      final ReputationContractTransactionSender transactionSender,
+      final BftBlockInterface bftBlockInterface,
+      final OnlineValidatorTracker onlineValidatorTracker) {
     this.blockchain = blockchain;
     this.validatorProvider = validatorProvider;
     this.localAddress = localAddress;
     this.contractAddress = contractAddress;
     this.transactionSender = transactionSender;
+    this.bftBlockInterface = bftBlockInterface;
+    this.onlineValidatorTracker = onlineValidatorTracker;
   }
 
   public void onFinalizedBlock(final BlockHeader blockHeader) {
     
 
-    if (blockHeader.getNumber() % 10 != 0) {
-      return;
-    }
+    // if (blockHeader.getNumber() % 10 != 0) {
+    //   return;
+    // }
 
     final Address proposer = proposerForBlock(blockHeader);
 
@@ -54,22 +64,45 @@ public class ReputationContractUpdateService {
       return;
     }
 
-    final Collection<Address> validators = validatorProvider.getValidatorsAfterBlock(blockHeader);
+    final Collection<Address> observedValidators =
+    bftBlockInterface.validatorsInBlock(blockHeader);
 
+final Collection<Address> successfulValidators =
+    bftBlockInterface.getCommitters(blockHeader);
+
+final Collection<Address> onlineValidators =
+    onlineValidatorTracker.getOnlineValidators(blockHeader.getNumber());
+
+final Collection<Address> selectedValidators = observedValidators;
+
+final Collection<Address> failedValidators =
+    selectedValidators.stream()
+        .filter(validator -> !successfulValidators.contains(validator))
+        .toList();
+
+        LOG.info(
+    "Block {} online validators from tracker: {}",
+    blockHeader.getNumber(),
+    onlineValidators);
     LOG.info(
         "Local node {} is proposer for finalized block {}. Preparing reputation update to contract {} for {} validators.",
         localAddress,
         blockHeader.getNumber(),
         contractAddress,
-        validators.size());
+        observedValidators.size());
 
-    transactionSender.prepareRecordFinalizedBlockTransaction(
-        contractAddress,
-        blockHeader.getNumber(),
-        validators,
-        validators,
-        validators,
-        List.of());
+        LOG.info("Observed validators: {}", observedValidators);
+LOG.info("Committers: {}", successfulValidators);
+LOG.info("Failed validators: {}", failedValidators);
+
+ transactionSender.prepareRecordFinalizedBlockTransaction(
+    contractAddress,
+    blockHeader.getNumber(),
+    onlineValidators,
+    observedValidators,
+    successfulValidators,
+    failedValidators);
+    onlineValidatorTracker.clear(blockHeader.getNumber());
   }
 
   private Address proposerForBlock(final BlockHeader blockHeader) {

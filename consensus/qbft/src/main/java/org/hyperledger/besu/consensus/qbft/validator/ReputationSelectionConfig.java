@@ -32,6 +32,7 @@ private final double failureThreshold;
   public ReputationSelectionConfig() {
     this.targetCommitteeSize = 10; // temporary
     this.minimumCommitteeSize = 4;  // temporary
+    // TODO: replace with dynamically computed k* from safety condition.
     this.ticketScalingFactor = 100;
     this.alpha = 0.3;
     this.beta = 0.3;
@@ -39,9 +40,12 @@ private final double failureThreshold;
     this.lambda = 0.8;
     this.delta = 0.7;
     this.timeDecayWindow = 5;
-    this.uptimeThreshold = 0.586;
-this.successThreshold = 0.62;
-this.failureThreshold = 0.35;
+//     this.uptimeThreshold = 0.586;
+// this.successThreshold = 0.62;
+// this.failureThreshold = 0.35;
+ this.uptimeThreshold = 0.0;
+this.successThreshold = 0.0;
+this.failureThreshold = 1.0; //temporary
   }
 
   public int getTargetCommitteeSize() {

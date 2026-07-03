@@ -37,7 +37,7 @@ public class QbftBlockHeightManagerFactory {
   private final QbftValidatorProvider validatorProvider;
   private final QbftValidatorModeTransitionLogger validatorModeTransitionLogger;
   private boolean isEarlyRoundChangeEnabled = false;
-
+private final OnlineValidatorTracker onlineValidatorTracker;
   /**
    * Instantiates a new Qbft block height manager factory.
    *
@@ -54,13 +54,15 @@ public class QbftBlockHeightManagerFactory {
       final MessageValidatorFactory messageValidatorFactory,
       final MessageFactory messageFactory,
       final QbftValidatorProvider validatorProvider,
-      final QbftValidatorModeTransitionLogger validatorModeTransitionLogger) {
+      final QbftValidatorModeTransitionLogger validatorModeTransitionLogger,
+      final OnlineValidatorTracker onlineValidatorTracker) {
     this.roundFactory = roundFactory;
     this.finalState = finalState;
     this.messageValidatorFactory = messageValidatorFactory;
     this.messageFactory = messageFactory;
     this.validatorProvider = validatorProvider;
     this.validatorModeTransitionLogger = validatorModeTransitionLogger;
+    this.onlineValidatorTracker = onlineValidatorTracker;
   }
 
   /**
@@ -124,7 +126,8 @@ public class QbftBlockHeightManagerFactory {
               finalState.getClock(),
               messageValidatorFactory,
               messageFactory,
-              validatorProvider);
+              validatorProvider,
+               onlineValidatorTracker);
     } else {
       roundChangeManager =
           new RoundChangeManager(
@@ -141,7 +144,8 @@ public class QbftBlockHeightManagerFactory {
               finalState.getClock(),
               messageValidatorFactory,
               messageFactory,
-              validatorProvider);
+              validatorProvider,
+            onlineValidatorTracker  );
     }
 
     return qbftBlockHeightManager;

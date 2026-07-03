@@ -31,6 +31,16 @@ public class ReputationScoreCalculator {
     return clamp(timeDecayedScore * participationBalance);
   }
 
+  public boolean passesThresholds(final Address validator, final BlockHeader parentHeader) {
+  final double uptime = metricsProvider.uptime(validator, parentHeader);
+  final double successRate = metricsProvider.successRate(validator, parentHeader);
+  final double failureRate = metricsProvider.failureRate(validator, parentHeader);
+
+  return uptime >= config.getUptimeThreshold()
+      && successRate >= config.getSuccessThreshold()
+      && failureRate <= config.getFailureThreshold();
+}
+
   private double calculateTimeDecayedScore(final Address validator, final BlockHeader parentHeader) {
     double weightedScoreSum = 0.0;
     double weightSum = 0.0;
@@ -73,4 +83,15 @@ public class ReputationScoreCalculator {
   private double clamp(final double value) {
     return Math.max(0.0, Math.min(1.0, value));
   }
+  public double uptime(final Address validator, final BlockHeader parentHeader) {
+  return metricsProvider.uptime(validator, parentHeader);
+}
+
+public double successRate(final Address validator, final BlockHeader parentHeader) {
+  return metricsProvider.successRate(validator, parentHeader);
+}
+
+public double failureRate(final Address validator, final BlockHeader parentHeader) {
+  return metricsProvider.failureRate(validator, parentHeader);
+}
 }

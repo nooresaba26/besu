@@ -32,7 +32,9 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
 /**
  * The Round state holds all the messages for a given round and tracks whether quorum has been
  * reached for the round to be prepared or committed.
@@ -50,6 +52,8 @@ public class RoundState {
   // to send out in a PrepareCertificate.
   private final Map<Address, Prepare> prepareMessages = new LinkedHashMap<>();
   private final Map<Address, Commit> commitMessages = new LinkedHashMap<>();
+  private final Set<Address> onlineValidators = new LinkedHashSet<>();
+  private final OnlineValidatorTracker onlineValidatorTracker;
 
   private boolean prepared = false;
   private boolean committed = false;
@@ -61,13 +65,15 @@ public class RoundState {
    * @param quorum the quorum
    * @param validator the validator
    */
-  public RoundState(
-      final ConsensusRoundIdentifier roundIdentifier,
-      final int quorum,
-      final MessageValidator validator) {
+public RoundState(
+    final ConsensusRoundIdentifier roundIdentifier,
+    final int quorum,
+    final MessageValidator validator,
+    final OnlineValidatorTracker onlineValidatorTracker) {
     this.roundIdentifier = roundIdentifier;
     this.quorum = quorum;
     this.validator = validator;
+    this.onlineValidatorTracker = onlineValidatorTracker;
   }
 
   /**
@@ -114,27 +120,33 @@ public class RoundState {
    *
    * @param msg the msg
    */
-  public void addPrepareMessage(final Prepare msg) {
-    if (proposalMessage.isEmpty() || validator.validatePrepare(msg)) {
-      prepareMessages.putIfAbsent(msg.getAuthor(), msg);
-      LOG.trace("Round state added prepare message prepare={}", msg);
-    }
-    updateState();
+ public void addPrepareMessage(final Prepare msg) {
+  if (proposalMessage.isEmpty() || validator.validatePrepare(msg)) {
+    prepareMessages.putIfAbsent(msg.getAuthor(), msg);
+    onlineValidatorTracker.recordOnline(
+    msg.getRoundIdentifier().getSequenceNumber(),
+    msg.getAuthor());
+    LOG.trace("Round state added prepare message prepare={}", msg);
   }
+  updateState();
+}
 
   /**
    * Add commit message.
    *
    * @param msg the msg
    */
-  public void addCommitMessage(final Commit msg) {
-    if (proposalMessage.isEmpty() || validator.validateCommit(msg)) {
-      commitMessages.putIfAbsent(msg.getAuthor(), msg);
-      LOG.trace("Round state added commit message commit={}", msg);
-    }
-
-    updateState();
+ public void addCommitMessage(final Commit msg) {
+  if (proposalMessage.isEmpty() || validator.validateCommit(msg)) {
+    commitMessages.putIfAbsent(msg.getAuthor(), msg);
+    onlineValidatorTracker.recordOnline(
+    msg.getRoundIdentifier().getSequenceNumber(),
+    msg.getAuthor());
+    LOG.trace("Round state added commit message commit={}", msg);
   }
+
+  updateState();
+}
 
   private void updateState() {
     prepared = (prepareMessages.size() >= quorum) && proposalMessage.isPresent();
@@ -195,6 +207,10 @@ public class RoundState {
         .map(cp -> cp.getSignedPayload().getPayload().getCommitSeal())
         .collect(Collectors.toList());
   }
+
+  public Collection<Address> getOnlineValidators() {
+  return List.copyOf(onlineValidators);
+}
 
   /**
    * Construct prepared certificate.

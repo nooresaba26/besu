@@ -108,6 +108,7 @@ import org.hyperledger.besu.consensus.qbft.validator.ReputationContractTransacti
 import org.hyperledger.besu.crypto.KeyPairUtil;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.consensus.qbft.validator.ContractReputationCandidateProvider;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.OnlineValidatorTracker;
 
 import java.time.Duration;
 import java.util.List;
@@ -284,6 +285,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey, blockEncoder);
 
+    final OnlineValidatorTracker onlineValidatorTracker = new OnlineValidatorTracker();
+
     QbftRoundFactory qbftRoundFactory =
         new QbftRoundFactory(
             finalState,
@@ -291,7 +294,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             qbftProtocolSchedule,
             minedBlockObservers,
             messageValidatorFactory,
-            messageFactory);
+            messageFactory,
+            onlineValidatorTracker);
     QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory =
         new QbftBlockHeightManagerFactory(
             finalState,
@@ -300,7 +304,8 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
             messageFactory,
             qbftValidatorProvider,
             new QbftValidatorModeTransitionLoggerAdaptor(
-                new ValidatorModeTransitionLogger(qbftForksSchedule)));
+                new ValidatorModeTransitionLogger(qbftForksSchedule)),
+                  onlineValidatorTracker);
 
     qbftBlockHeightManagerFactory.isEarlyRoundChangeEnabled(isEarlyRoundChangeEnabled);
 
@@ -341,7 +346,9 @@ final ReputationContractUpdateService reputationContractUpdateService =
         protocolContext.getWorldStateArchive(),
         miningConfiguration),
     KeyPairUtil.load(KeyPairUtil.getDefaultKeyFile(dataDirectory)),
-    localAddress));
+    localAddress),
+bftBlockInterface,
+ onlineValidatorTracker);
     // Update the next block period in seconds according to the transition schedule
 
     protocolContext
