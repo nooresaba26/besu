@@ -38,10 +38,10 @@ public class WeightedValidatorSelector {
 
     // final int targetSize = Math.min(config.getTargetCommitteeSize(), sortedCandidates.size());
 
-   if (sortedCandidates.size() <= 4) {
-  LOG.info("Small local QBFT network detected. Returning all validators to preserve liveness: {}", sortedCandidates);
-  return sortedCandidates;
-}
+//    if (sortedCandidates.size() <= 4) {
+//   LOG.info("Small local QBFT network detected. Returning all validators to preserve liveness: {}", sortedCandidates);
+//   return sortedCandidates;
+// }
 
     final List<TicketedValidator> ticketedValidators =
         sortedCandidates.stream()
@@ -50,10 +50,24 @@ public class WeightedValidatorSelector {
             .toList();
 
     if (ticketedValidators.isEmpty()) {
-      return sortedCandidates.stream().limit(config.getMinimumCommitteeSize()).toList();
-    }
+  LOG.warn("No validators received tickets. Returning all candidates to preserve liveness.");
+  return sortedCandidates;
+}
+      
 
-final double probability = selectionProbability(ticketedValidators);
+final int kStar = computeKStar(ticketedValidators);
+LOG.info(
+    "Committee adaptation: candidates={} kStar={} averageReputation={}",
+    ticketedValidators.size(),
+    kStar,
+    ticketedValidators.stream()
+        .mapToDouble(v -> v.tickets() / (double) config.getTicketScalingFactor())
+        .average()
+        .orElse(0.0));
+final double probability = selectionProbability(ticketedValidators, kStar);
+
+
+LOG.info("Computed kStar={} Pt={}", kStar, probability);
 
 System.out.println("Ticket selection probability Pt = " + probability);
 
@@ -64,32 +78,17 @@ final List<SelectedValidator> selectedValidators =
             .sorted(Comparator.comparing(SelectedValidator::address))
 .toList();
 
-    if (selectedValidators.size() >= config.getMinimumCommitteeSize()) {
-
-    final List<Address> committee =
-        selectedValidators.stream()
-            .map(SelectedValidator::address)
-            .toList();
-
-    LOG.info("Selected committee: {}", committee);
-
-    return committee;
-}
-
-   final List<Address> fallbackCommittee =
-    ticketedValidators.stream()
-        .sorted(
-            Comparator.comparingInt(TicketedValidator::tickets)
-                .reversed()
-                .thenComparing(TicketedValidator::address))
-        .limit(config.getMinimumCommitteeSize())
-        .map(TicketedValidator::address)
-        .sorted()
+   final List<Address> committee =
+    selectedValidators.stream()
+        .map(SelectedValidator::address)
         .toList();
 
-LOG.info("Fallback committee: {}", fallbackCommittee);
+LOG.info(
+    "Selected committee from probabilistic draw: size={} validators={}",
+    committee.size(),
+    committee);
 
-return fallbackCommittee;
+return committee;
   }
 
   private TicketedValidator ticket(final Address address, final BlockHeader parentHeader) {
@@ -150,7 +149,9 @@ private SelectedValidator select(
 
   private record SelectedValidator(Address address, int winningTickets) {}
 
-  private double selectionProbability(final List<TicketedValidator> ticketedValidators) {
+ private double selectionProbability(
+    final List<TicketedValidator> ticketedValidators,
+    final int targetCommitteeSize) {
   double low = 0.0;
   double high = 1.0;
 
@@ -162,7 +163,7 @@ private SelectedValidator select(
             .mapToDouble(v -> 1.0 - Math.pow(1.0 - mid, v.tickets()))
             .sum();
 
-    if (expectedCommitteeSize < config.getTargetCommitteeSize()) {
+   if (expectedCommitteeSize < targetCommitteeSize) {
       low = mid;
     } else {
       high = mid;
@@ -171,4 +172,33 @@ private SelectedValidator select(
 
   return (low + high) / 2.0;
 }
+private int computeKStar(final List<TicketedValidator> ticketedValidators) {
+  final int n = ticketedValidators.size();
+  final int minimum = config.getMinimumCommitteeSize();
+
+  if (n <= minimum) {
+    return n;
+  }
+
+  final double averageReputation =
+      ticketedValidators.stream()
+          .mapToDouble(v -> v.tickets() / (double) config.getTicketScalingFactor())
+          .average()
+          .orElse(0.0);
+
+  final int adaptiveCommitteeSize =
+      minimum + (int) Math.ceil((1.0 - averageReputation) * (n - minimum));
+
+  final int kStar = Math.max(minimum, Math.min(adaptiveCommitteeSize, n));
+
+  LOG.info(
+      "Adaptive kStar calculation: n={} minimum={} averageReputation={} kStar={}",
+      n,
+      minimum,
+      averageReputation,
+      kStar);
+
+  return kStar;
+}
+
 }
