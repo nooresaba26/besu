@@ -128,7 +128,8 @@ public class ValidatorContractController {
   }
 
   @SuppressWarnings("rawtypes")
-  private List<Type> decodeResult(final TransactionSimulatorResult result, final Function function) {
+  private List<Type> decodeResult(
+      final TransactionSimulatorResult result, final Function function) {
     if (result.isSuccessful()) {
       final List<Type> decodedList =
           FunctionReturnDecoder.decode(

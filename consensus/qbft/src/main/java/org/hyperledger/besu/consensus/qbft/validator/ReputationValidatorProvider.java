@@ -29,9 +29,7 @@ import java.util.concurrent.ExecutionException;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
-
 public class ReputationValidatorProvider implements ValidatorProvider {
-  
 
   private final Blockchain blockchain;
   private final WeightedValidatorSelector selector;
@@ -42,15 +40,15 @@ public class ReputationValidatorProvider implements ValidatorProvider {
       CacheBuilder.newBuilder().maximumSize(256).build();
 
   public ReputationValidatorProvider(
-    final Blockchain blockchain,
-    final ReputationCandidateProvider candidateProvider,
-    final WeightedValidatorSelector selector,
-    final ValidatorProvider delegate) {
-  this.blockchain = blockchain;
-  this.candidateProvider = candidateProvider;
-  this.selector = selector;
-  this.delegate = delegate;
-}
+      final Blockchain blockchain,
+      final ReputationCandidateProvider candidateProvider,
+      final WeightedValidatorSelector selector,
+      final ValidatorProvider delegate) {
+    this.blockchain = blockchain;
+    this.candidateProvider = candidateProvider;
+    this.selector = selector;
+    this.delegate = delegate;
+  }
 
   @Override
   public Collection<Address> getValidatorsAtHead() {
@@ -63,14 +61,14 @@ public class ReputationValidatorProvider implements ValidatorProvider {
       return committeeCache.get(
           parentHeader.getHash(),
           () -> {
-           System.out.println(
-    "ReputationValidatorProvider invoked for block " + parentHeader.getNumber());
+            System.out.println(
+                "ReputationValidatorProvider invoked for block " + parentHeader.getNumber());
             final Collection<Address> candidates =
                 candidateProvider.getCandidatesAfterBlock(parentHeader);
- System.out.println("Candidate count = " + candidates.size());
+            System.out.println("Candidate count = " + candidates.size());
             final List<Address> selected = selector.selectValidators(candidates, parentHeader);
-System.out.println("Selected count = " + selected.size());
-System.out.println("Selected validators = " + selected);
+            System.out.println("Selected count = " + selected.size());
+            System.out.println("Selected validators = " + selected);
             return List.copyOf(selected);
           });
     } catch (final ExecutionException e) {
@@ -90,13 +88,13 @@ System.out.println("Selected validators = " + selected);
         .orElseGet(() -> candidateProvider.getCandidatesAfterBlock(header));
   }
 
- @Override
-public Optional<VoteProvider> getVoteProviderAtHead() {
-  return delegate.getVoteProviderAtHead();
-}
+  @Override
+  public Optional<VoteProvider> getVoteProviderAtHead() {
+    return delegate.getVoteProviderAtHead();
+  }
 
-@Override
-public Optional<VoteProvider> getVoteProviderAfterBlock(final BlockHeader header) {
-  return delegate.getVoteProviderAfterBlock(header);
-}
+  @Override
+  public Optional<VoteProvider> getVoteProviderAfterBlock(final BlockHeader header) {
+    return delegate.getVoteProviderAfterBlock(header);
+  }
 }

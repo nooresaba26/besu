@@ -26,26 +26,26 @@ public class ReputationSelectionConfig {
   private final double delta;
   private final int timeDecayWindow;
   private final double uptimeThreshold;
-private final double successThreshold;
-private final double failureThreshold;
+  private final double successThreshold;
+  private final double failureThreshold;
 
   public ReputationSelectionConfig() {
     this.targetCommitteeSize = 10; // temporary
-    this.minimumCommitteeSize = 4;  // temporary
+    this.minimumCommitteeSize = 4; // temporary
     // TODO: replace with dynamically computed k* from safety condition.
-    this.ticketScalingFactor = 100;
+    this.ticketScalingFactor = 1000;
     this.alpha = 0.3;
     this.beta = 0.3;
     this.gamma = 0.4;
     this.lambda = 0.8;
     this.delta = 0.7;
     this.timeDecayWindow = 5;
-//     this.uptimeThreshold = 0.586;
-// this.successThreshold = 0.62;
-// this.failureThreshold = 0.35;
- this.uptimeThreshold = 0.0;
-this.successThreshold = 0.0;
-this.failureThreshold = 1.0; //temporary
+    //     this.uptimeThreshold = 0.586;
+    // this.successThreshold = 0.62;
+    // this.failureThreshold = 0.35;
+    this.uptimeThreshold = 0.0;
+    this.successThreshold = 0.0;
+    this.failureThreshold = 1.0; // temporary
   }
 
   public int getTargetCommitteeSize() {
@@ -81,17 +81,18 @@ this.failureThreshold = 1.0; //temporary
   }
 
   public int getTimeDecayWindow() {
-  return timeDecayWindow;
-}
-public double getUptimeThreshold() {
-  return uptimeThreshold;
-}
+    return timeDecayWindow;
+  }
 
-public double getSuccessThreshold() {
-  return successThreshold;
-}
+  public double getUptimeThreshold() {
+    return uptimeThreshold;
+  }
 
-public double getFailureThreshold() {
-  return failureThreshold;
-}
+  public double getSuccessThreshold() {
+    return successThreshold;
+  }
+
+  public double getFailureThreshold() {
+    return failureThreshold;
+  }
 }

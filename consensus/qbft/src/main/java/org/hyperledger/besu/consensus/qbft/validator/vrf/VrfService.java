@@ -1,5 +1,5 @@
 /*
- * Copyright ConsenSys AG.
+ * Copyright contributors to Besu.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -12,25 +12,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.hyperledger.besu.consensus.qbft.core.messagedata;
+package org.hyperledger.besu.consensus.qbft.validator.vrf;
 
-/** Message codes for QBFT v1 messages */
-public interface QbftV1 {
-  /** The constant PROPOSAL. */
-  int PROPOSAL = 0x12;
+import org.apache.tuweni.bytes.Bytes;
 
-  /** The constant PREPARE. */
-  int PREPARE = 0x13;
+/** Generates and verifies validator-selection VRF proofs. */
+public interface VrfService {
 
-  /** The constant COMMIT. */
-  int COMMIT = 0x14;
+  VrfProof generate(Bytes input);
 
- /** The constant ROUND_CHANGE. */
-int ROUND_CHANGE = 0x15;
-
-/** The constant VRF_ANNOUNCEMENT. */
-int VRF_ANNOUNCEMENT = 0x16;
-
-/** The constant MESSAGE_SPACE. */
-int MESSAGE_SPACE = 0x17;
+  boolean verify(Bytes input, VrfProof proof, Bytes publicKey);
 }

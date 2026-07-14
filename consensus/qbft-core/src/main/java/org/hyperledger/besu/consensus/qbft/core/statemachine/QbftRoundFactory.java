@@ -56,7 +56,7 @@ public class QbftRoundFactory {
       final Subscribers<QbftMinedBlockObserver> minedBlockObservers,
       final MessageValidatorFactory messageValidatorFactory,
       final MessageFactory messageFactory,
-        final OnlineValidatorTracker onlineValidatorTracker) {
+      final OnlineValidatorTracker onlineValidatorTracker) {
     this.finalState = finalState;
     this.blockCreatorFactory = finalState.getBlockCreatorFactory();
     this.blockInterface = blockInterface;
@@ -80,11 +80,11 @@ public class QbftRoundFactory {
         new ConsensusRoundIdentifier(nextBlockHeight, round);
 
     final RoundState roundState =
-       new RoundState(
-    roundIdentifier,
-    finalState.getQuorum(),
-    messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader),
-    onlineValidatorTracker);
+        new RoundState(
+            roundIdentifier,
+            finalState.getQuorum(),
+            messageValidatorFactory.createMessageValidator(roundIdentifier, parentHeader),
+            onlineValidatorTracker);
 
     return createNewRoundWithState(parentHeader, roundState);
   }

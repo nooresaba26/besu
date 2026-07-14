@@ -1,6 +1,22 @@
+/*
+ * Copyright contributors to Besu.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.hyperledger.besu.consensus.qbft.validator;
 
+import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
 import org.hyperledger.besu.consensus.common.validator.ValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.core.statemachine.OnlineValidatorTracker;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.chain.Blockchain;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -9,12 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.hyperledger.besu.consensus.common.bft.BftBlockInterface;
-import org.hyperledger.besu.consensus.qbft.core.statemachine.OnlineValidatorTracker;
 
 public class ReputationContractUpdateService {
 
@@ -27,6 +39,7 @@ public class ReputationContractUpdateService {
   private final ReputationContractTransactionSender transactionSender;
   private final BftBlockInterface bftBlockInterface;
   private final OnlineValidatorTracker onlineValidatorTracker;
+  private final SelectedCommitteeStore selectedCommitteeStore;
 
   public ReputationContractUpdateService(
       final Blockchain blockchain,
@@ -35,7 +48,8 @@ public class ReputationContractUpdateService {
       final Address contractAddress,
       final ReputationContractTransactionSender transactionSender,
       final BftBlockInterface bftBlockInterface,
-      final OnlineValidatorTracker onlineValidatorTracker) {
+      final OnlineValidatorTracker onlineValidatorTracker,
+      final SelectedCommitteeStore selectedCommitteeStore) {
     this.blockchain = blockchain;
     this.validatorProvider = validatorProvider;
     this.localAddress = localAddress;
@@ -43,10 +57,10 @@ public class ReputationContractUpdateService {
     this.transactionSender = transactionSender;
     this.bftBlockInterface = bftBlockInterface;
     this.onlineValidatorTracker = onlineValidatorTracker;
+    this.selectedCommitteeStore = selectedCommitteeStore;
   }
 
   public void onFinalizedBlock(final BlockHeader blockHeader) {
-    
 
     // if (blockHeader.getNumber() % 10 != 0) {
     //   return;
@@ -54,36 +68,34 @@ public class ReputationContractUpdateService {
 
     final Address proposer = proposerForBlock(blockHeader);
 
-    LOG.info(
-        "Block {} proposer={}, local={}",
-        blockHeader.getNumber(),
-        proposer,
-        localAddress);
+    LOG.info("Block {} proposer={}, local={}", blockHeader.getNumber(), proposer, localAddress);
 
     if (!localAddress.equals(proposer)) {
       return;
     }
 
-    final Collection<Address> observedValidators =
-    bftBlockInterface.validatorsInBlock(blockHeader);
+    final Collection<Address> observedValidators = bftBlockInterface.validatorsInBlock(blockHeader);
 
-final Collection<Address> successfulValidators =
-    bftBlockInterface.getCommitters(blockHeader);
+    final Collection<Address> successfulValidators = bftBlockInterface.getCommitters(blockHeader);
 
-final Collection<Address> onlineValidators =
-    onlineValidatorTracker.getOnlineValidators(blockHeader.getNumber());
+    final Collection<Address> onlineValidators =
+        onlineValidatorTracker.getOnlineValidators(blockHeader.getNumber());
 
-final Collection<Address> selectedValidators = observedValidators;
+    final List<Address> storedCommittee =
+    selectedCommitteeStore.get(blockHeader.getNumber());
 
-final Collection<Address> failedValidators =
-    selectedValidators.stream()
-        .filter(validator -> !successfulValidators.contains(validator))
-        .toList();
+final Collection<Address> selectedValidators =
+    storedCommittee.isEmpty()
+        ? observedValidators
+        : storedCommittee;
 
-        LOG.info(
-    "Block {} online validators from tracker: {}",
-    blockHeader.getNumber(),
-    onlineValidators);
+    final Collection<Address> failedValidators =
+        selectedValidators.stream()
+            .filter(validator -> !successfulValidators.contains(validator))
+            .toList();
+
+    LOG.info(
+        "Block {} online validators from tracker: {}", blockHeader.getNumber(), onlineValidators);
     LOG.info(
         "Local node {} is proposer for finalized block {}. Preparing reputation update to contract {} for {} validators.",
         localAddress,
@@ -91,17 +103,19 @@ final Collection<Address> failedValidators =
         contractAddress,
         observedValidators.size());
 
-        LOG.info("Observed validators: {}", observedValidators);
-LOG.info("Committers: {}", successfulValidators);
-LOG.info("Failed validators: {}", failedValidators);
+    LOG.info("Observed validators: {}", observedValidators);
+    LOG.info("Committers: {}", successfulValidators);
+    LOG.info("Failed validators: {}", failedValidators);
 
- transactionSender.prepareRecordFinalizedBlockTransaction(
-    contractAddress,
-    blockHeader.getNumber(),
-    onlineValidators,
-    observedValidators,
-    successfulValidators,
-    failedValidators);
+    transactionSender.prepareRecordFinalizedBlockTransaction(
+        contractAddress,
+        blockHeader.getNumber(),
+        onlineValidators,
+        observedValidators,
+        successfulValidators,
+        failedValidators);
+
+        selectedCommitteeStore.remove(blockHeader.getNumber());
     onlineValidatorTracker.clear(blockHeader.getNumber());
   }
 
