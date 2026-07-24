@@ -28,6 +28,11 @@ public class ReputationSelectionConfig {
   private final double uptimeThreshold;
   private final double successThreshold;
   private final double failureThreshold;
+  private final double suspectedMaliciousUptimeMaximum;
+  private final double suspectedMaliciousSuccessMaximum;
+  private final double suspectedMaliciousFailureMinimum;
+  private final double adversarialActivationRatio;
+  private final double unsafeCommitteeProbability;
 
   public ReputationSelectionConfig() {
     this.targetCommitteeSize = 10; // temporary
@@ -46,6 +51,12 @@ public class ReputationSelectionConfig {
     this.uptimeThreshold = 0.0;
     this.successThreshold = 0.0;
     this.failureThreshold = 1.0; // temporary
+    this.suspectedMaliciousUptimeMaximum = 0.40;
+    this.suspectedMaliciousSuccessMaximum = 0.40;
+    this.suspectedMaliciousFailureMinimum = 0.60;
+
+    this.adversarialActivationRatio = 0.32;
+    this.unsafeCommitteeProbability = 0.01;
   }
 
   public int getTargetCommitteeSize() {
@@ -94,5 +105,25 @@ public class ReputationSelectionConfig {
 
   public double getFailureThreshold() {
     return failureThreshold;
+  }
+
+  public double getSuspectedMaliciousUptimeMaximum() {
+    return suspectedMaliciousUptimeMaximum;
+  }
+
+  public double getSuspectedMaliciousSuccessMaximum() {
+    return suspectedMaliciousSuccessMaximum;
+  }
+
+  public double getSuspectedMaliciousFailureMinimum() {
+    return suspectedMaliciousFailureMinimum;
+  }
+
+  public double getAdversarialActivationRatio() {
+    return adversarialActivationRatio;
+  }
+
+  public double getUnsafeCommitteeProbability() {
+    return unsafeCommitteeProbability;
   }
 }

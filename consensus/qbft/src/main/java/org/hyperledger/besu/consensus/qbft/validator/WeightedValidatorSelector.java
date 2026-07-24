@@ -22,9 +22,6 @@ import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfSeedGenerator;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfAnnouncementBroadcaster;
-
-
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,44 +43,45 @@ public class WeightedValidatorSelector {
   private final P256TaiVrfService vrfService;
   private final VrfAnnouncementStore vrfAnnouncementStore;
   private final SelectedCommitteeStore selectedCommitteeStore;
-
+  private final AdversarialConditionEvaluator adversarialConditionEvaluator;
 
   public WeightedValidatorSelector(
-    final ReputationSelectionConfig config,
-    final ReputationScoreCalculator scoreCalculator,
-    final P256TaiVrfService vrfService,
-    final VrfAnnouncementStore vrfAnnouncementStore,
-    final SelectedCommitteeStore selectedCommitteeStore) {
+      final ReputationSelectionConfig config,
+      final ReputationScoreCalculator scoreCalculator,
+      final P256TaiVrfService vrfService,
+      final VrfAnnouncementStore vrfAnnouncementStore,
+      final SelectedCommitteeStore selectedCommitteeStore) {
 
-  this.config = config;
-  this.scoreCalculator = scoreCalculator;
-  this.vrfService = vrfService;
-  this.vrfAnnouncementStore = vrfAnnouncementStore;
-  this.selectedCommitteeStore = selectedCommitteeStore;
-  this.adaptiveThresholdCalculator =
-      new AdaptiveThresholdCalculator(scoreCalculator);
-  this.fuzzyWeightCalculator = new FuzzyWeightCalculator();
-}
+    this.config = config;
+    this.scoreCalculator = scoreCalculator;
+    this.vrfService = vrfService;
+    this.vrfAnnouncementStore = vrfAnnouncementStore;
+    this.selectedCommitteeStore = selectedCommitteeStore;
+    this.adaptiveThresholdCalculator = new AdaptiveThresholdCalculator(scoreCalculator);
+    this.fuzzyWeightCalculator = new FuzzyWeightCalculator();
+    this.adversarialConditionEvaluator = new AdversarialConditionEvaluator(config, scoreCalculator);
+  }
 
   public List<Address> selectValidators(
       final Collection<Address> candidates, final BlockHeader parentHeader) {
     final List<Address> sortedCandidates = new ArrayList<>(candidates);
     sortedCandidates.sort(null);
     // Public deterministic seed for this selection round
-final Bytes vrfSeed =
-    Bytes.concatenate(
-        parentHeader.getHash().getBytes(),
-        Bytes.ofUnsignedLong(parentHeader.getNumber() + 1));
-        final VrfProof localProof = vrfService.generate(vrfSeed);
+    final Bytes vrfSeed =
+        Bytes.concatenate(
+            parentHeader.getHash().getBytes(), Bytes.ofUnsignedLong(parentHeader.getNumber() + 1));
+    final VrfProof localProof = vrfService.generate(vrfSeed);
 
-LOG.info(
-    "Local VRF generated: proof={} output={}",
-    localProof.proof().toHexString(),
-    localProof.output().toHexString());
+    LOG.info(
+        "Local VRF generated: proof={} output={}",
+        localProof.proof().toHexString(),
+        localProof.output().toHexString());
 
     if (sortedCandidates.isEmpty()) {
       return sortedCandidates;
     }
+    final NetworkRiskAssessment riskAssessment =
+        adversarialConditionEvaluator.evaluate(sortedCandidates, parentHeader);
     generateLocalVrfAnnouncement(sortedCandidates, parentHeader);
 
     // LOG.debug("VRF service loaded for validator {}", vrfService.getLocalValidator());
@@ -101,6 +99,17 @@ LOG.info(
     final AdaptiveThresholds thresholds = adaptiveThresholdCalculator.calculate(networkSnapshot);
 
     final FuzzyWeights fuzzyWeights = fuzzyWeightCalculator.calculate(networkSnapshot);
+    LOG.info(
+        "Adaptive threshold filtering at block {}: enabled={} "
+            + "estimatedMaliciousRatio={} activationRatio={} "
+            + "uptimeThreshold={} successThreshold={} failureThreshold={}",
+        parentHeader.getNumber() + 1,
+        riskAssessment.adversarial(),
+        riskAssessment.suspectedMaliciousRatio(),
+        config.getAdversarialActivationRatio(),
+        thresholds.uptimeThreshold(),
+        thresholds.successThreshold(),
+        thresholds.failureThreshold());
 
     scoreCalculator.storeCurrentBaseScores(sortedCandidates, parentHeader, fuzzyWeights);
     LOG.info(
@@ -120,20 +129,17 @@ LOG.info(
 
     final List<TicketedValidator> ticketedValidators =
         sortedCandidates.stream()
-            .map(address -> ticket(address, parentHeader, thresholds))
+            .map(address -> ticket(address, parentHeader, thresholds, riskAssessment.adversarial()))
             .filter(ticketedValidator -> ticketedValidator.tickets() > 0)
             .toList();
 
     if (ticketedValidators.isEmpty()) {
-  LOG.warn(
-      "No validators received tickets. Returning all candidates to preserve liveness.");
+      LOG.warn("No validators received tickets. Returning all candidates to preserve liveness.");
 
-  selectedCommitteeStore.put(
-      parentHeader.getNumber() + 1,
-      sortedCandidates);
+      selectedCommitteeStore.put(parentHeader.getNumber() + 1, sortedCandidates);
 
-  return sortedCandidates;
-}
+      return sortedCandidates;
+    }
 
     final int kStar = computeKStar(ticketedValidators);
     LOG.info(
@@ -165,19 +171,25 @@ LOG.info(
         committee.size(),
         committee);
 
-   selectedCommitteeStore.put(
-    parentHeader.getNumber() + 1,
-    committee);
+    selectedCommitteeStore.put(parentHeader.getNumber() + 1, committee);
 
-return committee;
+    return committee;
   }
 
-
   private TicketedValidator ticket(
-      final Address address, final BlockHeader parentHeader, final AdaptiveThresholds thresholds) {
+      final Address address,
+      final BlockHeader parentHeader,
+      final AdaptiveThresholds thresholds,
+      final boolean applyAdaptiveThresholds) {
 
-    if (!scoreCalculator.passesThresholds(address, parentHeader, thresholds)) {
-      LOG.info("Validator {} failed adaptive threshold check", address);
+    if (applyAdaptiveThresholds
+        && !scoreCalculator.passesThresholds(address, parentHeader, thresholds)) {
+
+      LOG.info(
+          "Validator {} excluded by adaptive threshold filtering at block {}",
+          address,
+          parentHeader.getNumber() + 1);
+
       return new TicketedValidator(address, 0);
     }
     final double reputationScore = scoreCalculator.calculateScore(address, parentHeader);
@@ -190,40 +202,32 @@ return committee;
   }
 
   private SelectedValidator select(
-    final TicketedValidator validator,
-    final BlockHeader parentHeader,
-    final double selectionProbability) {
+      final TicketedValidator validator,
+      final BlockHeader parentHeader,
+      final double selectionProbability) {
 
-  int winningTickets = 0;
-  final long blockHeight = parentHeader.getNumber() + 1;
+    int winningTickets = 0;
+    final long blockHeight = parentHeader.getNumber() + 1;
 
- 
+    for (int ticketIndex = 0; ticketIndex < validator.tickets(); ticketIndex++) {
 
-  for (int ticketIndex = 0;
-      ticketIndex < validator.tickets();
-      ticketIndex++) {
+      final Hash ticketHash =
+          Hash.hash(
+              Bytes.concatenate(
+                  parentHeader.getHash().getBytes(),
+                  validator.address().getBytes(),
+                  Bytes.ofUnsignedLong(blockHeight),
+                  Bytes.ofUnsignedLong(ticketIndex)));
 
-   
-final Hash ticketHash =
-    Hash.hash(
-        Bytes.concatenate(
-            parentHeader.getHash().getBytes(),
-            validator.address().getBytes(),
-            Bytes.ofUnsignedLong(blockHeight),
-            Bytes.ofUnsignedLong(ticketIndex)));
+      final double randomValue = normalized(ticketHash);
 
-final double randomValue = normalized(ticketHash);
-   
-
-    if (randomValue < selectionProbability) {
-      winningTickets++;
+      if (randomValue < selectionProbability) {
+        winningTickets++;
+      }
     }
-  }
 
-  return new SelectedValidator(
-      validator.address(),
-      winningTickets);
-}
+    return new SelectedValidator(validator.address(), winningTickets);
+  }
 
   private double normalized(final Hash hash) {
     final byte[] bytes = hash.getBytes().toArrayUnsafe();
@@ -291,82 +295,63 @@ final double randomValue = normalized(ticketHash);
   }
 
   private void generateLocalVrfAnnouncement(
-    final List<Address> candidates, final BlockHeader parentHeader) {
+      final List<Address> candidates, final BlockHeader parentHeader) {
 
-  final Address localValidator = vrfService.getLocalValidator();
-  final long blockHeight = parentHeader.getNumber() + 1;
+    final Address localValidator = vrfService.getLocalValidator();
+    final long blockHeight = parentHeader.getNumber() + 1;
 
-  if (!candidates.contains(localValidator)) {
-    LOG.debug(
-        "Local validator {} is not a candidate for block {}",
+    if (!candidates.contains(localValidator)) {
+      LOG.debug("Local validator {} is not a candidate for block {}", localValidator, blockHeight);
+      return;
+    }
+
+    final VrfAnnouncement existingAnnouncement =
+        vrfAnnouncementStore.getAnnouncement(blockHeight, localValidator);
+
+    if (existingAnnouncement != null) {
+      return;
+    }
+
+    final Bytes vrfInput = VrfSeedGenerator.createSeed(parentHeader).getBytes();
+
+    final VrfProof localProof = vrfService.generate(vrfInput);
+
+    final Bytes publicKey = vrfService.getCompressedPublicKey();
+
+    final boolean valid = vrfService.verify(vrfInput, localProof, publicKey);
+
+    if (!valid) {
+      throw new IllegalStateException(
+          "Generated VRF proof failed verification for validator " + localValidator);
+    }
+
+    LOG.info(
+        "Local VRF proof verified: block={} validator={} output={}",
+        blockHeight,
         localValidator,
-        blockHeight);
-    return;
+        localProof.output());
+
+    final VrfAnnouncement announcement =
+        new VrfAnnouncement(
+            blockHeight, localValidator, publicKey, localProof.output(), localProof.proof());
+
+    vrfAnnouncementStore.put(announcement);
+
+    final VrfAnnouncement storedAnnouncement =
+        vrfAnnouncementStore.getAnnouncement(blockHeight, localValidator);
+
+    if (storedAnnouncement == null) {
+      throw new IllegalStateException(
+          "VRF announcement was not stored for validator "
+              + localValidator
+              + " at block "
+              + blockHeight);
+    }
+
+    LOG.info(
+        "Stored local VRF announcement: block={} validator={} output={}",
+        storedAnnouncement.blockHeight(),
+        storedAnnouncement.validator(),
+        storedAnnouncement.output());
   }
-
-  final VrfAnnouncement existingAnnouncement =
-      vrfAnnouncementStore.getAnnouncement(blockHeight, localValidator);
-
-  if (existingAnnouncement != null) {
-    return;
-  }
-
-  final Bytes vrfInput =
-      VrfSeedGenerator.createSeed(parentHeader).getBytes();
-
-  final VrfProof localProof =
-      vrfService.generate(vrfInput);
-
-  final Bytes publicKey =
-      vrfService.getCompressedPublicKey();
-
-  final boolean valid =
-      vrfService.verify(vrfInput, localProof, publicKey);
-
-  if (!valid) {
-    throw new IllegalStateException(
-        "Generated VRF proof failed verification for validator "
-            + localValidator);
-  }
-
-  LOG.info(
-      "Local VRF proof verified: block={} validator={} output={}",
-      blockHeight,
-      localValidator,
-      localProof.output());
-
-  final VrfAnnouncement announcement =
-      new VrfAnnouncement(
-          blockHeight,
-          localValidator,
-          publicKey,
-          localProof.output(),
-          localProof.proof());
-
-  vrfAnnouncementStore.put(announcement);
- 
-
-  final VrfAnnouncement storedAnnouncement =
-      vrfAnnouncementStore.getAnnouncement(
-          blockHeight,
-          localValidator);
-
-  if (storedAnnouncement == null) {
-    throw new IllegalStateException(
-        "VRF announcement was not stored for validator "
-            + localValidator
-            + " at block "
-            + blockHeight);
-  }
-
-  LOG.info(
-      "Stored local VRF announcement: block={} validator={} output={}",
-      storedAnnouncement.blockHeight(),
-      storedAnnouncement.validator(),
-      storedAnnouncement.output());
 }
-
-
-  }
-
-
