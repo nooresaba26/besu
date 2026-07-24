@@ -1,7 +1,14 @@
 /*
  * Copyright contributors to Besu.
  *
- * Licensed under the Apache License, Version 2.0.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -23,15 +30,13 @@ import org.slf4j.LoggerFactory;
 /** Verifies received VRF announcements before storing them. */
 public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(VerifiedVrfAnnouncementHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(VerifiedVrfAnnouncementHandler.class);
 
   private final Blockchain blockchain;
   private final P256TaiVrfService vrfVerifier;
   private final VrfAnnouncementStore announcementStore;
 
-  private final ConcurrentMap<Address, Bytes> registeredPublicKeys =
-      new ConcurrentHashMap<>();
+  private final ConcurrentMap<Address, Bytes> registeredPublicKeys = new ConcurrentHashMap<>();
 
   public VerifiedVrfAnnouncementHandler(
       final Blockchain blockchain,
@@ -62,8 +67,7 @@ public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
     }
 
     final Address validator = message.getAuthor();
-    final long blockHeight =
-        message.getRoundIdentifier().getSequenceNumber();
+    final long blockHeight = message.getRoundIdentifier().getSequenceNumber();
 
     if (blockHeight <= 0) {
       LOG.warn(
@@ -75,10 +79,7 @@ public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
 
     final long parentBlockNumber = blockHeight - 1;
 
-    final BlockHeader parentHeader =
-        blockchain
-            .getBlockHeader(parentBlockNumber)
-            .orElse(null);
+    final BlockHeader parentHeader = blockchain.getBlockHeader(parentBlockNumber).orElse(null);
 
     if (parentHeader == null) {
       LOG.warn(
@@ -99,27 +100,16 @@ public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
       return;
     }
 
-    final Bytes vrfInput =
-        VrfSeedGenerator.createSeed(parentHeader).getBytes();
+    final Bytes vrfInput = VrfSeedGenerator.createSeed(parentHeader).getBytes();
 
-    final VrfProof proof =
-        new VrfProof(
-            validator,
-            output,
-            proofBytes);
+    final VrfProof proof = new VrfProof(validator, output, proofBytes);
 
     if (!vrfVerifier.verify(vrfInput, proof, publicKey)) {
-      LOG.warn(
-          "Rejected invalid VRF proof: block={} validator={}",
-          blockHeight,
-          validator);
+      LOG.warn("Rejected invalid VRF proof: block={} validator={}", blockHeight, validator);
       return;
     }
 
-    final VrfAnnouncement existing =
-        announcementStore.getAnnouncement(
-            blockHeight,
-            validator);
+    final VrfAnnouncement existing = announcementStore.getAnnouncement(blockHeight, validator);
 
     if (existing != null) {
       if (!existing.output().equals(output)
@@ -127,21 +117,14 @@ public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
           || !existing.publicKey().equals(publicKey)) {
 
         LOG.warn(
-            "Rejected conflicting VRF announcement: block={} validator={}",
-            blockHeight,
-            validator);
+            "Rejected conflicting VRF announcement: block={} validator={}", blockHeight, validator);
       }
 
       return;
     }
 
     final VrfAnnouncement announcement =
-        new VrfAnnouncement(
-            blockHeight,
-            validator,
-            publicKey,
-            output,
-            proofBytes);
+        new VrfAnnouncement(blockHeight, validator, publicKey, output, proofBytes);
 
     announcementStore.put(announcement);
 
@@ -152,18 +135,13 @@ public class VerifiedVrfAnnouncementHandler implements VrfAnnouncementHandler {
         output);
   }
 
-  private boolean bindPublicKey(
-      final Address validator,
-      final Bytes publicKey) {
+  private boolean bindPublicKey(final Address validator, final Bytes publicKey) {
 
     if (publicKey == null) {
       return false;
     }
 
-    final Bytes existing =
-        registeredPublicKeys.putIfAbsent(
-            validator,
-            publicKey);
+    final Bytes existing = registeredPublicKeys.putIfAbsent(validator, publicKey);
 
     return existing == null || existing.equals(publicKey);
   }

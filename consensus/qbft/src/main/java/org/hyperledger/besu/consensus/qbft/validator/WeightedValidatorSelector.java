@@ -141,15 +141,13 @@ public class WeightedValidatorSelector {
       return sortedCandidates;
     }
 
-    final int kStar = computeKStar(ticketedValidators);
+    final int kStar = computeKStar(ticketedValidators, riskAssessment);
     LOG.info(
-        "Committee adaptation: candidates={} kStar={} averageReputation={}",
+        "Committee adaptation: candidates={} suspectedMaliciousRatio={} adversarial={} kStar={}",
         ticketedValidators.size(),
-        kStar,
-        ticketedValidators.stream()
-            .mapToDouble(v -> v.tickets() / (double) config.getTicketScalingFactor())
-            .average()
-            .orElse(0.0));
+        riskAssessment.suspectedMaliciousRatio(),
+        riskAssessment.adversarial(),
+        kStar);
     final double probability = selectionProbability(ticketedValidators, kStar);
 
     LOG.info("Computed kStar={} Pt={}", kStar, probability);
@@ -265,33 +263,134 @@ public class WeightedValidatorSelector {
     return (low + high) / 2.0;
   }
 
-  private int computeKStar(final List<TicketedValidator> ticketedValidators) {
-    final int n = ticketedValidators.size();
-    final int minimum = config.getMinimumCommitteeSize();
+  private int computeKStar(
+      final List<TicketedValidator> ticketedValidators,
+      final NetworkRiskAssessment riskAssessment) {
 
-    if (n <= minimum) {
-      return n;
+    final int candidateCount = ticketedValidators.size();
+    final int minimumCommitteeSize = Math.min(config.getMinimumCommitteeSize(), candidateCount);
+
+    final double estimatedMaliciousRatio = riskAssessment.suspectedMaliciousRatio();
+
+    final double epsilon = config.getUnsafeCommitteeProbability();
+
+    if (candidateCount == 0) {
+      return 0;
     }
 
-    final double averageReputation =
-        ticketedValidators.stream()
-            .mapToDouble(v -> v.tickets() / (double) config.getTicketScalingFactor())
-            .average()
-            .orElse(0.0);
+    if (estimatedMaliciousRatio <= 0.0) {
+      LOG.info(
+          "Probability-based kStar: no suspected malicious validators; "
+              + "using minimum committee size={}",
+          minimumCommitteeSize);
 
-    final int adaptiveCommitteeSize =
-        minimum + (int) Math.ceil((1.0 - averageReputation) * (n - minimum));
+      return minimumCommitteeSize;
+    }
 
-    final int kStar = Math.max(minimum, Math.min(adaptiveCommitteeSize, n));
+    if (estimatedMaliciousRatio >= (1.0 / 3.0)) {
+      LOG.warn(
+          "Estimated malicious ratio {} is at or above the Byzantine boundary. "
+              + "No committee size can provide the requested probabilistic guarantee. "
+              + "Using all {} eligible validators.",
+          estimatedMaliciousRatio,
+          candidateCount);
 
-    LOG.info(
-        "Adaptive kStar calculation: n={} minimum={} averageReputation={} kStar={}",
-        n,
-        minimum,
-        averageReputation,
-        kStar);
+      return candidateCount;
+    }
 
-    return kStar;
+    for (int committeeSize = minimumCommitteeSize;
+        committeeSize <= candidateCount;
+        committeeSize++) {
+
+      final double unsafeProbability =
+          unsafeCommitteeProbability(committeeSize, estimatedMaliciousRatio);
+
+      LOG.debug(
+          "kStar candidate: committeeSize={} estimatedMaliciousRatio={} "
+              + "unsafeProbability={} epsilon={}",
+          committeeSize,
+          estimatedMaliciousRatio,
+          unsafeProbability,
+          epsilon);
+
+      if (unsafeProbability <= epsilon) {
+        LOG.info(
+            "Probability-based kStar selected: candidateCount={} "
+                + "estimatedMaliciousRatio={} kStar={} "
+                + "unsafeProbability={} epsilon={}",
+            candidateCount,
+            estimatedMaliciousRatio,
+            committeeSize,
+            unsafeProbability,
+            epsilon);
+
+        return committeeSize;
+      }
+    }
+
+    final double fullCommitteeUnsafeProbability =
+        unsafeCommitteeProbability(candidateCount, estimatedMaliciousRatio);
+
+    LOG.warn(
+        "No committee size up to {} satisfies epsilon={}. "
+            + "Using all eligible validators. "
+            + "estimatedMaliciousRatio={} unsafeProbability={}",
+        candidateCount,
+        epsilon,
+        estimatedMaliciousRatio,
+        fullCommitteeUnsafeProbability);
+
+    return candidateCount;
+  }
+
+  private double unsafeCommitteeProbability(
+      final int committeeSize, final double estimatedMaliciousRatio) {
+
+    if (committeeSize <= 0) {
+      return 0.0;
+    }
+
+    if (estimatedMaliciousRatio <= 0.0) {
+      return 0.0;
+    }
+
+    if (estimatedMaliciousRatio >= 1.0) {
+      return 1.0;
+    }
+
+    final int maliciousThreshold = (int) Math.ceil(committeeSize / 3.0);
+
+    /*
+     * X follows Binomial(committeeSize, estimatedMaliciousRatio).
+     *
+     * Unsafe probability:
+     *
+     * P(X >= maliciousThreshold)
+     *
+     * We calculate:
+     *
+     * 1 - P(X < maliciousThreshold)
+     */
+
+    final double honestProbability = 1.0 - estimatedMaliciousRatio;
+
+    double probabilityMass = Math.pow(honestProbability, committeeSize);
+
+    double safeCumulativeProbability = probabilityMass;
+
+    for (int maliciousCount = 1; maliciousCount < maliciousThreshold; maliciousCount++) {
+
+      probabilityMass =
+          probabilityMass
+              * (committeeSize - maliciousCount + 1)
+              / maliciousCount
+              * estimatedMaliciousRatio
+              / honestProbability;
+
+      safeCumulativeProbability += probabilityMass;
+    }
+
+    return Math.max(0.0, Math.min(1.0, 1.0 - safeCumulativeProbability));
   }
 
   private void generateLocalVrfAnnouncement(

@@ -22,13 +22,14 @@ import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.QbftV1;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftGossiper;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftMessage;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.Message;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
-import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
+
 import java.util.List;
 
 import com.google.common.collect.Lists;
@@ -73,8 +74,8 @@ public class QbftGossiperImpl implements QbftGossiper {
           case QbftV1.COMMIT -> CommitMessageData.fromMessageData(messageData).decode();
           case QbftV1.ROUND_CHANGE ->
               RoundChangeMessageData.fromMessageData(messageData).decode(blockEncoder);
-              case QbftV1.VRF_ANNOUNCEMENT ->
-    VrfAnnouncementMessageData.fromMessageData(messageData).decode();
+          case QbftV1.VRF_ANNOUNCEMENT ->
+              VrfAnnouncementMessageData.fromMessageData(messageData).decode();
           default ->
               throw new IllegalArgumentException(
                   "Received message does not conform to any recognised QBFT message structure.");

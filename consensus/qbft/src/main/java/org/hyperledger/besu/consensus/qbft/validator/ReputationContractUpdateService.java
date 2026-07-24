@@ -81,13 +81,10 @@ public class ReputationContractUpdateService {
     final Collection<Address> onlineValidators =
         onlineValidatorTracker.getOnlineValidators(blockHeader.getNumber());
 
-    final List<Address> storedCommittee =
-    selectedCommitteeStore.get(blockHeader.getNumber());
+    final List<Address> storedCommittee = selectedCommitteeStore.get(blockHeader.getNumber());
 
-final Collection<Address> selectedValidators =
-    storedCommittee.isEmpty()
-        ? observedValidators
-        : storedCommittee;
+    final Collection<Address> selectedValidators =
+        storedCommittee.isEmpty() ? observedValidators : storedCommittee;
 
     final Collection<Address> failedValidators =
         selectedValidators.stream()
@@ -115,7 +112,7 @@ final Collection<Address> selectedValidators =
         successfulValidators,
         failedValidators);
 
-        selectedCommitteeStore.remove(blockHeader.getNumber());
+    selectedCommitteeStore.remove(blockHeader.getNumber());
     onlineValidatorTracker.clear(blockHeader.getNumber());
   }
 
