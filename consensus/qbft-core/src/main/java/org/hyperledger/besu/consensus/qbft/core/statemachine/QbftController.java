@@ -29,6 +29,7 @@ import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.QbftMessageDecoder;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockHeader;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockchain;
@@ -38,11 +39,10 @@ import org.hyperledger.besu.consensus.qbft.core.types.QbftGossiper;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftMessage;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftNewChainHead;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftReceivedMessageEvent;
+import org.hyperledger.besu.consensus.qbft.core.types.VrfAnnouncementHandler;
 import org.hyperledger.besu.consensus.qbft.core.validation.MessageValidator;
 import org.hyperledger.besu.consensus.qbft.core.validation.RoundChangeMessageValidator;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
-import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
-import org.hyperledger.besu.consensus.qbft.core.types.VrfAnnouncementHandler;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -65,7 +65,8 @@ public class QbftController implements QbftEventHandler {
   private final QbftMessageDecoder messageDecoder = new QbftMessageDecoder();
   private BaseQbftBlockHeightManager currentHeightManager;
   private final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory;
-private final VrfAnnouncementHandler vrfAnnouncementHandler;
+  private final VrfAnnouncementHandler vrfAnnouncementHandler;
+
   /**
    * Instantiates a new Qbft controller.
    *
@@ -78,44 +79,44 @@ private final VrfAnnouncementHandler vrfAnnouncementHandler;
    * @param blockEncoder the block encoder
    */
   public QbftController(
-    final QbftBlockchain blockchain,
-    final QbftFinalState finalState,
-    final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
-    final QbftGossiper gossiper,
-    final MessageTracker duplicateMessageTracker,
-    final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
-    final QbftBlockCodec blockEncoder) {
+      final QbftBlockchain blockchain,
+      final QbftFinalState finalState,
+      final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
+      final QbftGossiper gossiper,
+      final MessageTracker duplicateMessageTracker,
+      final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
+      final QbftBlockCodec blockEncoder) {
 
-  this(
-      blockchain,
-      finalState,
-      qbftBlockHeightManagerFactory,
-      gossiper,
-      duplicateMessageTracker,
-      futureMessageBuffer,
-      blockEncoder,
-      announcement -> {});
-}
+    this(
+        blockchain,
+        finalState,
+        qbftBlockHeightManagerFactory,
+        gossiper,
+        duplicateMessageTracker,
+        futureMessageBuffer,
+        blockEncoder,
+        announcement -> {});
+  }
 
-public QbftController(
-    final QbftBlockchain blockchain,
-    final QbftFinalState finalState,
-    final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
-    final QbftGossiper gossiper,
-    final MessageTracker duplicateMessageTracker,
-    final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
-    final QbftBlockCodec blockEncoder,
-    final VrfAnnouncementHandler vrfAnnouncementHandler) {
+  public QbftController(
+      final QbftBlockchain blockchain,
+      final QbftFinalState finalState,
+      final QbftBlockHeightManagerFactory qbftBlockHeightManagerFactory,
+      final QbftGossiper gossiper,
+      final MessageTracker duplicateMessageTracker,
+      final FutureMessageBuffer<QbftMessage> futureMessageBuffer,
+      final QbftBlockCodec blockEncoder,
+      final VrfAnnouncementHandler vrfAnnouncementHandler) {
 
-  this.blockchain = blockchain;
-  this.finalState = finalState;
-  this.futureMessageBuffer = futureMessageBuffer;
-  this.gossiper = gossiper;
-  this.duplicateMessageTracker = duplicateMessageTracker;
-  this.qbftBlockHeightManagerFactory = qbftBlockHeightManagerFactory;
-  this.blockEncoder = blockEncoder;
-  this.vrfAnnouncementHandler = vrfAnnouncementHandler;
-}
+    this.blockchain = blockchain;
+    this.finalState = finalState;
+    this.futureMessageBuffer = futureMessageBuffer;
+    this.gossiper = gossiper;
+    this.duplicateMessageTracker = duplicateMessageTracker;
+    this.qbftBlockHeightManagerFactory = qbftBlockHeightManagerFactory;
+    this.blockEncoder = blockEncoder;
+    this.vrfAnnouncementHandler = vrfAnnouncementHandler;
+  }
 
   private void handleMessage(final QbftMessage message, final boolean isReplayed) {
     final BftMessage<?> bftMessage = messageDecoder.decode(message, blockEncoder);
@@ -130,12 +131,8 @@ public QbftController(
       case RoundChange roundChange ->
           consumeMessage(
               message, roundChange, currentHeightManager::handleRoundChangePayload, isReplayed);
-              case VrfAnnouncementMessage announcement ->
-    consumeMessage(
-        message,
-        announcement,
-        vrfAnnouncementHandler::handle,
-        isReplayed);
+      case VrfAnnouncementMessage announcement ->
+          consumeMessage(message, announcement, vrfAnnouncementHandler::handle, isReplayed);
       default ->
           throw new IllegalArgumentException(
               String.format(

@@ -44,6 +44,7 @@ public class WeightedValidatorSelector {
   private final VrfAnnouncementStore vrfAnnouncementStore;
   private final SelectedCommitteeStore selectedCommitteeStore;
   private final AdversarialConditionEvaluator adversarialConditionEvaluator;
+  private static final int PROTOCOL_MINIMUM_COMMITTEE_SIZE = 3;
 
   public WeightedValidatorSelector(
       final ReputationSelectionConfig config,
@@ -162,7 +163,7 @@ public class WeightedValidatorSelector {
             .toList();
 
     final List<Address> committee =
-        selectedValidators.stream().map(SelectedValidator::address).toList();
+        ensureRequiredCommitteeSize(selectedValidators, ticketedValidators, kStar, parentHeader);
 
     LOG.info(
         "Selected committee from probabilistic draw: size={} validators={}",
@@ -192,7 +193,7 @@ public class WeightedValidatorSelector {
     }
     final double reputationScore = scoreCalculator.calculateScore(address, parentHeader);
     final int tickets =
-        Math.max(0, (int) Math.round(config.getTicketScalingFactor() * reputationScore));
+        Math.max(1, (int) Math.round(config.getTicketScalingFactor() * reputationScore));
 
     LOG.info("Validator {} score={} tickets={}", address, reputationScore, tickets);
 
@@ -268,7 +269,6 @@ public class WeightedValidatorSelector {
       final NetworkRiskAssessment riskAssessment) {
 
     final int candidateCount = ticketedValidators.size();
-    final int minimumCommitteeSize = Math.min(config.getMinimumCommitteeSize(), candidateCount);
 
     final double estimatedMaliciousRatio = riskAssessment.suspectedMaliciousRatio();
 
@@ -276,15 +276,6 @@ public class WeightedValidatorSelector {
 
     if (candidateCount == 0) {
       return 0;
-    }
-
-    if (estimatedMaliciousRatio <= 0.0) {
-      LOG.info(
-          "Probability-based kStar: no suspected malicious validators; "
-              + "using minimum committee size={}",
-          minimumCommitteeSize);
-
-      return minimumCommitteeSize;
     }
 
     if (estimatedMaliciousRatio >= (1.0 / 3.0)) {
@@ -298,9 +289,9 @@ public class WeightedValidatorSelector {
       return candidateCount;
     }
 
-    for (int committeeSize = minimumCommitteeSize;
-        committeeSize <= candidateCount;
-        committeeSize++) {
+    final int lowerBound = Math.min(PROTOCOL_MINIMUM_COMMITTEE_SIZE, candidateCount);
+
+    for (int committeeSize = lowerBound; committeeSize <= candidateCount; committeeSize++) {
 
       final double unsafeProbability =
           unsafeCommitteeProbability(committeeSize, estimatedMaliciousRatio);
@@ -452,5 +443,52 @@ public class WeightedValidatorSelector {
         storedAnnouncement.blockHeight(),
         storedAnnouncement.validator(),
         storedAnnouncement.output());
+  }
+
+  private List<Address> ensureRequiredCommitteeSize(
+      final List<SelectedValidator> selectedValidators,
+      final List<TicketedValidator> ticketedValidators,
+      final int kStar,
+      final BlockHeader parentHeader) {
+
+    final List<Address> committee =
+        new ArrayList<>(selectedValidators.stream().map(SelectedValidator::address).toList());
+
+    final int requiredSize = Math.min(kStar, ticketedValidators.size());
+
+    if (committee.size() >= requiredSize) {
+      return committee;
+    }
+
+    final long blockHeight = parentHeader.getNumber() + 1;
+
+    final List<Address> deterministicFallback =
+        ticketedValidators.stream()
+            .map(TicketedValidator::address)
+            .filter(address -> !committee.contains(address))
+            .sorted(
+                Comparator.comparing(
+                    address ->
+                        Hash.hash(
+                            Bytes.concatenate(
+                                parentHeader.getHash().getBytes(),
+                                address.getBytes(),
+                                Bytes.ofUnsignedLong(blockHeight)))))
+            .toList();
+
+    final int missingValidators = requiredSize - committee.size();
+
+    committee.addAll(deterministicFallback.stream().limit(missingValidators).toList());
+
+    committee.sort(null);
+
+    LOG.warn(
+        "Probabilistic draw selected fewer validators than kStar. "
+            + "Deterministically completed committee: required={} finalSize={} validators={}",
+        requiredSize,
+        committee.size(),
+        committee);
+
+    return committee;
   }
 }

@@ -20,10 +20,10 @@ import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.QbftV1;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftMessage;
 import org.hyperledger.besu.ethereum.p2p.rlpx.wire.MessageData;
-import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
 
 /** The QbftMessageDecoder decodes a QbftMessage into a BftMessage. */
 public class QbftMessageDecoder {
@@ -48,8 +48,8 @@ public class QbftMessageDecoder {
       case QbftV1.COMMIT -> CommitMessageData.fromMessageData(messageData).decode();
       case QbftV1.ROUND_CHANGE ->
           RoundChangeMessageData.fromMessageData(messageData).decode(blockCodec);
-          case QbftV1.VRF_ANNOUNCEMENT ->
-    VrfAnnouncementMessageData.fromMessageData(messageData).decode();
+      case QbftV1.VRF_ANNOUNCEMENT ->
+          VrfAnnouncementMessageData.fromMessageData(messageData).decode();
       default ->
           throw new IllegalArgumentException(
               String.format(

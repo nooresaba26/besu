@@ -61,6 +61,8 @@ public class ReputationContractTransactionSender {
     this.blockchainQueries = blockchainQueries;
     this.localKeyPair = localKeyPair;
     this.localAddress = localAddress;
+
+    LOG.info("Reputation transaction sender address: {}", localAddress);
   }
 
   public Bytes buildRecordFinalizedBlockPayload(

@@ -21,6 +21,7 @@ import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
 import org.hyperledger.besu.consensus.qbft.core.statemachine.PreparedCertificate;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlock;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftBlockCodec;
@@ -28,13 +29,12 @@ import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.cryptoservices.NodeKey;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
-import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
-import org.apache.tuweni.bytes.Bytes;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 
 /** The Message factory. */
@@ -161,30 +161,27 @@ public class MessageFactory {
           Collections.emptyList());
     }
   }
+
   /**
- * Creates a signed VRF announcement.
- *
- * @param roundIdentifier target block height and selection round
- * @param publicKey validator VRF public key
- * @param output VRF output
- * @param proof VRF proof
- * @return signed announcement
- */
-public VrfAnnouncementMessage createVrfAnnouncement(
-    final ConsensusRoundIdentifier roundIdentifier,
-    final Bytes publicKey,
-    final Bytes output,
-    final Bytes proof) {
+   * Creates a signed VRF announcement.
+   *
+   * @param roundIdentifier target block height and selection round
+   * @param publicKey validator VRF public key
+   * @param output VRF output
+   * @param proof VRF proof
+   * @return signed announcement
+   */
+  public VrfAnnouncementMessage createVrfAnnouncement(
+      final ConsensusRoundIdentifier roundIdentifier,
+      final Bytes publicKey,
+      final Bytes output,
+      final Bytes proof) {
 
-  final VrfAnnouncementPayload payload =
-      new VrfAnnouncementPayload(
-          roundIdentifier,
-          publicKey,
-          output,
-          proof);
+    final VrfAnnouncementPayload payload =
+        new VrfAnnouncementPayload(roundIdentifier, publicKey, output, proof);
 
-  return new VrfAnnouncementMessage(createSignedMessage(payload));
-}
+    return new VrfAnnouncementMessage(createSignedMessage(payload));
+  }
 
   private <M extends Payload> SignedData<M> createSignedMessage(final M payload) {
     final SECPSignature signature =

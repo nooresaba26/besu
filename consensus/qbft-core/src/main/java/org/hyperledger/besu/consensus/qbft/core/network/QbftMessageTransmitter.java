@@ -21,10 +21,12 @@ import org.hyperledger.besu.consensus.qbft.core.messagedata.CommitMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.PrepareMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.ProposalMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagedata.RoundChangeMessageData;
+import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Commit;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Prepare;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.Proposal;
 import org.hyperledger.besu.consensus.qbft.core.messagewrappers.RoundChange;
+import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
 import org.hyperledger.besu.consensus.qbft.core.payload.MessageFactory;
 import org.hyperledger.besu.consensus.qbft.core.payload.PreparePayload;
 import org.hyperledger.besu.consensus.qbft.core.payload.RoundChangePayload;
@@ -34,15 +36,13 @@ import org.hyperledger.besu.crypto.SECPSignature;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
 import org.hyperledger.besu.plugin.services.securitymodule.SecurityModuleException;
-import org.hyperledger.besu.consensus.qbft.core.messagedata.VrfAnnouncementMessageData;
-import org.hyperledger.besu.consensus.qbft.core.messagewrappers.VrfAnnouncementMessage;
 
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.tuweni.bytes.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.tuweni.bytes.Bytes;
 
 /** The Qbft message transmitter. */
 public class QbftMessageTransmitter {
@@ -152,36 +152,33 @@ public class QbftMessageTransmitter {
       LOG.warn("Failed to generate signature for RoundChange (not sent): {} ", e.getMessage());
     }
   }
+
   /**
- * Multicasts a signed VRF announcement to known validators.
- *
- * @param roundIdentifier target block height and selection round
- * @param publicKey local validator VRF public key
- * @param output local validator VRF output
- * @param proof local validator VRF proof
- */
-public void multicastVrfAnnouncement(
-    final ConsensusRoundIdentifier roundIdentifier,
-    final Bytes publicKey,
-    final Bytes output,
-    final Bytes proof) {
+   * Multicasts a signed VRF announcement to known validators.
+   *
+   * @param roundIdentifier target block height and selection round
+   * @param publicKey local validator VRF public key
+   * @param output local validator VRF output
+   * @param proof local validator VRF proof
+   */
+  public void multicastVrfAnnouncement(
+      final ConsensusRoundIdentifier roundIdentifier,
+      final Bytes publicKey,
+      final Bytes output,
+      final Bytes proof) {
 
-  try {
-    final VrfAnnouncementMessage announcement =
-        messageFactory.createVrfAnnouncement(
-            roundIdentifier,
-            publicKey,
-            output,
-            proof);
+    try {
+      final VrfAnnouncementMessage announcement =
+          messageFactory.createVrfAnnouncement(roundIdentifier, publicKey, output, proof);
 
-    final VrfAnnouncementMessageData messageData =
-        VrfAnnouncementMessageData.create(announcement);
+      final VrfAnnouncementMessageData messageData =
+          VrfAnnouncementMessageData.create(announcement);
 
-    multicaster.send(messageData);
-  } catch (final SecurityModuleException e) {
-    LOG.warn(
-        "Failed to generate signature for VRF announcement; message not sent: {}",
-        e.getMessage());
+      multicaster.send(messageData);
+    } catch (final SecurityModuleException e) {
+      LOG.warn(
+          "Failed to generate signature for VRF announcement; message not sent: {}",
+          e.getMessage());
+    }
   }
-}
 }

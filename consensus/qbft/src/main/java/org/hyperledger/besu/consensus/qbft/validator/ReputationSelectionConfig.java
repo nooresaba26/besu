@@ -16,8 +16,8 @@ package org.hyperledger.besu.consensus.qbft.validator;
 
 public class ReputationSelectionConfig {
 
-  private final int targetCommitteeSize;
-  private final int minimumCommitteeSize;
+  // private final int targetCommitteeSize;
+  // private final int minimumCommitteeSize;
   private final int ticketScalingFactor;
   private final double alpha;
   private final double beta;
@@ -35,8 +35,8 @@ public class ReputationSelectionConfig {
   private final double unsafeCommitteeProbability;
 
   public ReputationSelectionConfig() {
-    this.targetCommitteeSize = 10; // temporary
-    this.minimumCommitteeSize = 4; // temporary
+    // this.targetCommitteeSize = 4; // temporary
+    // this.minimumCommitteeSize = 3; // temporary
     // TODO: replace with dynamically computed k* from safety condition.
     this.ticketScalingFactor = 1000;
     this.alpha = 0.3;
@@ -59,13 +59,13 @@ public class ReputationSelectionConfig {
     this.unsafeCommitteeProbability = 0.01;
   }
 
-  public int getTargetCommitteeSize() {
-    return targetCommitteeSize;
-  }
+  // public int getTargetCommitteeSize() {
+  //   return targetCommitteeSize;
+  // }
 
-  public int getMinimumCommitteeSize() {
-    return minimumCommitteeSize;
-  }
+  // public int getMinimumCommitteeSize() {
+  //   return minimumCommitteeSize;
+  // }
 
   public int getTicketScalingFactor() {
     return ticketScalingFactor;

@@ -67,6 +67,7 @@ import org.hyperledger.besu.consensus.qbft.core.types.QbftMessage;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftMinedBlockObserver;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftProtocolSchedule;
 import org.hyperledger.besu.consensus.qbft.core.types.QbftValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.core.types.VrfAnnouncementHandler;
 import org.hyperledger.besu.consensus.qbft.core.validation.MessageValidatorFactory;
 import org.hyperledger.besu.consensus.qbft.jsonrpc.QbftJsonRpcMethods;
 import org.hyperledger.besu.consensus.qbft.network.QbftGossiperImpl;
@@ -82,6 +83,7 @@ import org.hyperledger.besu.consensus.qbft.validator.ReputationScoreCalculator;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationScoreHistoryStore;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationSelectionConfig;
 import org.hyperledger.besu.consensus.qbft.validator.ReputationValidatorProvider;
+import org.hyperledger.besu.consensus.qbft.validator.SelectedCommitteeStore;
 import org.hyperledger.besu.consensus.qbft.validator.StaticReputationCandidateProvider;
 import org.hyperledger.besu.consensus.qbft.validator.StaticValidatorMetricsProvider;
 import org.hyperledger.besu.consensus.qbft.validator.TransactionValidatorProvider;
@@ -89,10 +91,11 @@ import org.hyperledger.besu.consensus.qbft.validator.ValidatorContractController
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorMetricsProvider;
 import org.hyperledger.besu.consensus.qbft.validator.ValidatorModeTransitionLogger;
 import org.hyperledger.besu.consensus.qbft.validator.WeightedValidatorSelector;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.P256TaiVrfService;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfKeyManager;
 import org.hyperledger.besu.consensus.qbft.validator.vrf.InMemoryVrfAnnouncementStore;
+import org.hyperledger.besu.consensus.qbft.validator.vrf.P256TaiVrfService;
+import org.hyperledger.besu.consensus.qbft.validator.vrf.VerifiedVrfAnnouncementHandler;
 import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfAnnouncementStore;
+import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfKeyManager;
 import org.hyperledger.besu.crypto.KeyPairUtil;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.ethereum.ProtocolContext;
@@ -116,12 +119,6 @@ import org.hyperledger.besu.ethereum.p2p.config.SubProtocolConfiguration;
 import org.hyperledger.besu.ethereum.storage.keyvalue.KeyValueSegmentIdentifier;
 import org.hyperledger.besu.ethereum.worldstate.WorldStateArchive;
 import org.hyperledger.besu.util.Subscribers;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.InMemoryVrfAnnouncementStore;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.VrfAnnouncementStore;
-import org.hyperledger.besu.consensus.qbft.core.types.VrfAnnouncementHandler;
-import org.hyperledger.besu.consensus.qbft.validator.vrf.VerifiedVrfAnnouncementHandler;
-import org.hyperledger.besu.consensus.qbft.validator.SelectedCommitteeStore;
-import org.hyperledger.besu.consensus.common.bft.ConsensusRoundIdentifier;
 
 import java.security.KeyPair;
 import java.time.Duration;
@@ -136,7 +133,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(QbftBesuControllerBuilder.class);
   private static final Address REPUTATION_CONTRACT_ADDRESS =
-      Address.fromHexString("0xeB4D259426e570aAEeC7CD305f593e3fE70e311D");
+      Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef");
   private BftEventQueue bftEventQueue;
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;
@@ -145,12 +142,9 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
   private BftConfigOptions bftConfigOptions;
   private QbftExtraDataCodec qbftExtraDataCodec;
   private BftBlockInterface bftBlockInterface;
-  private final VrfAnnouncementStore vrfAnnouncementStore =
-    new InMemoryVrfAnnouncementStore();
-  
-private final SelectedCommitteeStore selectedCommitteeStore =
-    new SelectedCommitteeStore();
+  private final VrfAnnouncementStore vrfAnnouncementStore = new InMemoryVrfAnnouncementStore();
 
+  private final SelectedCommitteeStore selectedCommitteeStore = new SelectedCommitteeStore();
 
   /** Default Constructor. */
   public QbftBesuControllerBuilder() {}
@@ -184,9 +178,7 @@ private final SelectedCommitteeStore selectedCommitteeStore =
         new TransactionValidatorProvider(
             blockchain, new ValidatorContractController(transactionSimulator), qbftForksSchedule);
 
-    return createReputationValidatorProvider(
-    blockchain,
-    transactionValidatorProvider );
+    return createReputationValidatorProvider(blockchain, transactionValidatorProvider);
   }
 
   @Override
@@ -306,8 +298,6 @@ private final SelectedCommitteeStore selectedCommitteeStore =
         new MessageTracker(qbftConfig.getDuplicateMessageLimit());
 
     final MessageFactory messageFactory = new MessageFactory(nodeKey, blockEncoder);
-   
-
 
     final OnlineValidatorTracker onlineValidatorTracker = new OnlineValidatorTracker();
 
@@ -333,30 +323,24 @@ private final SelectedCommitteeStore selectedCommitteeStore =
 
     qbftBlockHeightManagerFactory.isEarlyRoundChangeEnabled(isEarlyRoundChangeEnabled);
 
-    final KeyPair controllerVrfKeyPair =
-    VrfKeyManager.loadOrCreate(dataDirectory);
+    final KeyPair controllerVrfKeyPair = VrfKeyManager.loadOrCreate(dataDirectory);
 
-final P256TaiVrfService controllerVrfService =
-    new P256TaiVrfService(
-        localAddress,
-        controllerVrfKeyPair);
+    final P256TaiVrfService controllerVrfService =
+        new P256TaiVrfService(localAddress, controllerVrfKeyPair);
 
-final VrfAnnouncementHandler vrfAnnouncementHandler =
-    new VerifiedVrfAnnouncementHandler(
-        blockchain,
-        controllerVrfService,
-        vrfAnnouncementStore);
+    final VrfAnnouncementHandler vrfAnnouncementHandler =
+        new VerifiedVrfAnnouncementHandler(blockchain, controllerVrfService, vrfAnnouncementStore);
 
-   final QbftEventHandler qbftController =
-    new QbftController(
-        new QbftBlockchainAdaptor(blockchain),
-        finalState,
-        qbftBlockHeightManagerFactory,
-        gossiper,
-        duplicateMessageTracker,
-        futureMessageBuffer,
-        blockEncoder,
-        vrfAnnouncementHandler);
+    final QbftEventHandler qbftController =
+        new QbftController(
+            new QbftBlockchainAdaptor(blockchain),
+            finalState,
+            qbftBlockHeightManagerFactory,
+            gossiper,
+            duplicateMessageTracker,
+            futureMessageBuffer,
+            blockEncoder,
+            vrfAnnouncementHandler);
     final BftEventHandler bftEventHandler = new BftEventHandlerAdaptor(qbftController);
 
     final EventMultiplexer eventMultiplexer = new EventMultiplexer(bftEventHandler);
@@ -388,7 +372,7 @@ final VrfAnnouncementHandler vrfAnnouncementHandler =
                 localAddress),
             bftBlockInterface,
             onlineValidatorTracker,
-             selectedCommitteeStore);
+            selectedCommitteeStore);
     // Update the next block period in seconds according to the transition schedule
 
     protocolContext
@@ -495,11 +479,7 @@ final VrfAnnouncementHandler vrfAnnouncementHandler =
             .nonForkingValidatorProvider(blockchain, epochManager, bftBlockInterface);
 
     final ValidatorProvider validatorProvider =
-createReputationValidatorProvider(
-    blockchain,
-    blockValidatorProvider); 
-
-
+        createReputationValidatorProvider(blockchain, blockValidatorProvider);
 
     // replaced twice - 18-6-2026
 
@@ -540,8 +520,7 @@ createReputationValidatorProvider(
   }
 
   private ValidatorProvider createReputationValidatorProvider(
-    final Blockchain blockchain,
-    final ValidatorProvider delegate) {
+      final Blockchain blockchain, final ValidatorProvider delegate) {
     final Address localValidatorAddress = Util.publicKeyToAddress(nodeKey.getPublicKey());
     final ReputationSelectionConfig reputationConfig = new ReputationSelectionConfig();
 
@@ -591,14 +570,13 @@ createReputationValidatorProvider(
         localValidatorAddress,
         vrfService.getCompressedPublicKey());
 
-
-final WeightedValidatorSelector weightedValidatorSelector =
-    new WeightedValidatorSelector(
-        reputationConfig,
-        scoreCalculator,
-        vrfService,
-        vrfAnnouncementStore,
-         selectedCommitteeStore);
+    final WeightedValidatorSelector weightedValidatorSelector =
+        new WeightedValidatorSelector(
+            reputationConfig,
+            scoreCalculator,
+            vrfService,
+            vrfAnnouncementStore,
+            selectedCommitteeStore);
     return new ReputationValidatorProvider(
         blockchain, candidateProvider, weightedValidatorSelector, delegate);
   } // on 18-6-2026

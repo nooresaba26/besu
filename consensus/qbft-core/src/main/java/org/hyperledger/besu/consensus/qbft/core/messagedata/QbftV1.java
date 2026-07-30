@@ -25,12 +25,12 @@ public interface QbftV1 {
   /** The constant COMMIT. */
   int COMMIT = 0x14;
 
- /** The constant ROUND_CHANGE. */
-int ROUND_CHANGE = 0x15;
+  /** The constant ROUND_CHANGE. */
+  int ROUND_CHANGE = 0x15;
 
-/** The constant VRF_ANNOUNCEMENT. */
-int VRF_ANNOUNCEMENT = 0x16;
+  /** The constant VRF_ANNOUNCEMENT. */
+  int VRF_ANNOUNCEMENT = 0x16;
 
-/** The constant MESSAGE_SPACE. */
-int MESSAGE_SPACE = 0x17;
+  /** The constant MESSAGE_SPACE. */
+  int MESSAGE_SPACE = 0x17;
 }
