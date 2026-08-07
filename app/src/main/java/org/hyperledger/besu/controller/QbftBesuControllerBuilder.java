@@ -133,7 +133,7 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(QbftBesuControllerBuilder.class);
   private static final Address REPUTATION_CONTRACT_ADDRESS =
-      Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef");
+      Address.fromHexString("0xA7B7C52bd883D159d87078BD0562481747AbC638");
   private BftEventQueue bftEventQueue;
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;

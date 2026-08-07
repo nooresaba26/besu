@@ -19,18 +19,22 @@ import org.hyperledger.besu.ethereum.core.BlockHeader;
 
 public class StaticValidatorMetricsProvider implements ValidatorMetricsProvider {
 
+  private static final double INITIAL_UPTIME = 0.5;
+  private static final double INITIAL_SUCCESS = 0.5;
+  private static final double INITIAL_FAILURE = 0.5;
+
   @Override
   public double uptime(final Address validator, final BlockHeader parentHeader) {
-    return 1.0;
+    return INITIAL_UPTIME;
   }
 
   @Override
   public double successRate(final Address validator, final BlockHeader parentHeader) {
-    return 1.0;
+    return INITIAL_SUCCESS;
   }
 
   @Override
   public double failureRate(final Address validator, final BlockHeader parentHeader) {
-    return 0.0;
+    return INITIAL_FAILURE;
   }
 }

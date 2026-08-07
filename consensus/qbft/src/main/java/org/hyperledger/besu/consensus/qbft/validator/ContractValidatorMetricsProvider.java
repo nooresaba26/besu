@@ -38,6 +38,8 @@ public class ContractValidatorMetricsProvider implements ValidatorMetricsProvide
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ContractValidatorMetricsProvider.class);
+  private static final BigInteger MIN_OBSERVED_BLOCKS = BigInteger.valueOf(10);
+  private static final BigInteger MIN_PARTICIPATED_ROUNDS = BigInteger.valueOf(3);
 
   @Override
   public double uptime(final Address validator, final BlockHeader parentHeader) {
@@ -58,13 +60,16 @@ public class ContractValidatorMetricsProvider implements ValidatorMetricsProvide
           stats.consecutiveParticipation(),
           stats.active());
 
-      if (stats.observedBlocks().equals(BigInteger.ZERO)) {
+      if (stats.observedBlocks().compareTo(MIN_OBSERVED_BLOCKS) < 0) {
         final double fallbackValue = fallback.uptime(validator, parentHeader);
 
-        LOG.warn(
-            "No contract observations for {} at block {}. Using fallback uptime={}",
+        LOG.info(
+            "Insufficient uptime history for {} at block {}: observed={}/{}. "
+                + "Using fallback uptime={}",
             validator,
             parentHeader.getNumber(),
+            stats.observedBlocks(),
+            MIN_OBSERVED_BLOCKS,
             fallbackValue);
 
         return fallbackValue;
@@ -90,13 +95,16 @@ public class ContractValidatorMetricsProvider implements ValidatorMetricsProvide
     try {
       final ValidatorContractController.ValidatorStats stats = stats(validator, parentHeader);
 
-      if (stats.participatedRounds().equals(BigInteger.ZERO)) {
+      if (stats.participatedRounds().compareTo(MIN_PARTICIPATED_ROUNDS) < 0) {
         final double fallbackValue = fallback.successRate(validator, parentHeader);
 
-        LOG.warn(
-            "No contract participation for {} at block {}. Using fallback success={}",
+        LOG.info(
+            "Insufficient success history for {} at block {}: participated={}/{}. "
+                + "Using fallback success={}",
             validator,
             parentHeader.getNumber(),
+            stats.participatedRounds(),
+            MIN_PARTICIPATED_ROUNDS,
             fallbackValue);
 
         return fallbackValue;
@@ -122,13 +130,16 @@ public class ContractValidatorMetricsProvider implements ValidatorMetricsProvide
     try {
       final ValidatorContractController.ValidatorStats stats = stats(validator, parentHeader);
 
-      if (stats.participatedRounds().equals(BigInteger.ZERO)) {
+      if (stats.participatedRounds().compareTo(MIN_PARTICIPATED_ROUNDS) < 0) {
         final double fallbackValue = fallback.failureRate(validator, parentHeader);
 
-        LOG.warn(
-            "No contract participation for {} at block {}. Using fallback failure={}",
+        LOG.info(
+            "Insufficient failure history for {} at block {}: participated={}/{}. "
+                + "Using fallback failure={}",
             validator,
             parentHeader.getNumber(),
+            stats.participatedRounds(),
+            MIN_PARTICIPATED_ROUNDS,
             fallbackValue);
 
         return fallbackValue;

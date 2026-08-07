@@ -166,7 +166,8 @@ public class WeightedValidatorSelector {
         ensureRequiredCommitteeSize(selectedValidators, ticketedValidators, kStar, parentHeader);
 
     LOG.info(
-        "Selected committee from probabilistic draw: size={} validators={}",
+        "Selected committee from probabilistic draw: block={} size={} validators={}",
+        parentHeader.getNumber() + 1,
         committee.size(),
         committee);
 
