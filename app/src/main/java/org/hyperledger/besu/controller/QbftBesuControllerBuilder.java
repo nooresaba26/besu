@@ -132,8 +132,18 @@ import org.slf4j.LoggerFactory;
 public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private static final Logger LOG = LoggerFactory.getLogger(QbftBesuControllerBuilder.class);
-  private static final Address REPUTATION_CONTRACT_ADDRESS =
-      Address.fromHexString("0xA7B7C52bd883D159d87078BD0562481747AbC638");
+//   private static final Address REPUTATION_CONTRACT_ADDRESS =
+//       Address.fromHexString("0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef");
+
+private static final String REPUTATION_CONTRACT_ADDRESS_ENV =
+    "BESU_REPUTATION_CONTRACT_ADDRESS";
+
+private static final String DEVELOPMENT_REPUTATION_CONTRACT_ADDRESS =
+    "0x44264bfA3Dcd7F139398087C4Cb0E2330EB381Ef";
+
+private static final Address REPUTATION_CONTRACT_ADDRESS =
+    loadReputationContractAddress();
+
   private BftEventQueue bftEventQueue;
   private QbftConfigOptions qbftConfig;
   private ForksSchedule<QbftConfigOptions> qbftForksSchedule;
@@ -146,6 +156,25 @@ public class QbftBesuControllerBuilder extends BesuControllerBuilder {
 
   private final SelectedCommitteeStore selectedCommitteeStore = new SelectedCommitteeStore();
 
+  private static Address loadReputationContractAddress() {
+  String configuredAddress = System.getenv(REPUTATION_CONTRACT_ADDRESS_ENV);
+
+  if (configuredAddress == null || configuredAddress.isBlank()) {
+    LOG.warn(
+        "Environment variable {} is not set. Using development reputation contract address {}.",
+        REPUTATION_CONTRACT_ADDRESS_ENV,
+        DEVELOPMENT_REPUTATION_CONTRACT_ADDRESS);
+
+    configuredAddress = DEVELOPMENT_REPUTATION_CONTRACT_ADDRESS;
+  } else {
+    LOG.info(
+        "Using reputation contract address from environment variable {}: {}",
+        REPUTATION_CONTRACT_ADDRESS_ENV,
+        configuredAddress);
+  }
+
+  return Address.fromHexString(configuredAddress.trim());
+}
   /** Default Constructor. */
   public QbftBesuControllerBuilder() {}
 
