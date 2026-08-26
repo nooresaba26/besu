@@ -1,0 +1,56 @@
+{
+    "config":  {
+                   "chainId":  2026,
+                   "homesteadBlock":  0,
+                   "eip150Block":  0,
+                   "eip155Block":  0,
+                   "eip158Block":  0,
+                   "byzantiumBlock":  0,
+                   "constantinopleBlock":  0,
+                   "petersburgBlock":  0,
+                   "istanbulBlock":  0,
+                   "berlinBlock":  0,
+                   "londonBlock":  0,
+                   "qbft":  {
+                                "blockperiodseconds":  2,
+                                "epochlength":  30000,
+                                "requesttimeoutseconds":  4
+                            }
+               },
+    "nonce":  "0x0",
+    "timestamp":  "0x58ee40ba",
+    "gasLimit":  "0x1fffffffffffff",
+    "difficulty":  "0x1",
+    "mixHash":  "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
+    "coinbase":  "0x0000000000000000000000000000000000000000",
+    "alloc":  {
+                  "ee75e7826372e1edd7db15af807a9f02751756a4":  {
+                                                                   "balance":  "0x3635C9ADC5DEA00000"
+                                                               },
+                  "2f53ca9e0c887f9c1b42c4486d50e0d8464bbecf":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "39ad67cc8e22ebfb577bf6d856446c1f63c2b50d":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "416f990fd2d76ee34516112fb37f7f73eae5a5d0":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "4782cff471ddee18276682a992c6de624506f734":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "47a62b31824b4203a0be8920c4cd5a403d02f477":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "538cb748ff9f6770fe95b4c549adac91ab2dd72a":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "7bf5502a5bf925ef02fa7884f4aa9d9036476ba9":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               },
+                  "bd940de1255919734104edcba52d243e4a00be4f":  {
+                                                                   "balance":  "0x8AC7230489E80000"
+                                                               }
+              },
+    "extraData":  "0xf8cea00000000000000000000000000000000000000000000000000000000000000000f8a89447a62b31824b4203a0be8920c4cd5a403d02f4779439ad67cc8e22ebfb577bf6d856446c1f63c2b50d942f53ca9e0c887f9c1b42c4486d50e0d8464bbecf94bd940de1255919734104edcba52d243e4a00be4f944782cff471ddee18276682a992c6de624506f734947bf5502a5bf925ef02fa7884f4aa9d9036476ba994538cb748ff9f6770fe95b4c549adac91ab2dd72a94416f990fd2d76ee34516112fb37f7f73eae5a5d0c080c0"
+}

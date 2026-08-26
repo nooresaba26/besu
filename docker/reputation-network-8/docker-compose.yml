@@ -1,0 +1,177 @@
+services:
+
+  node1:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node1
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node1/key:/var/lib/besu/key
+      - ./node1/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node1/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: &besu-command
+      - --data-path=/var/lib/besu
+      - --genesis-file=/network/genesis.json
+      - --node-private-key-file=/var/lib/besu/key
+      - --p2p-port=30303
+      - --rpc-http-enabled
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-port=8545
+      - --rpc-http-api=ETH,NET,WEB3,QBFT,TXPOOL
+      - --host-allowlist=*
+      - --rpc-http-cors-origins=all
+      - --metrics-enabled
+      - --metrics-host=0.0.0.0
+      - --metrics-port=9545
+      - --min-gas-price=0
+      - --sync-min-peers=0
+      - --tx-pool-max-future-by-sender=2000
+    ports:
+      - "8545:8545"
+      - "9545:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.11
+
+  node2:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node2
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node2/key:/var/lib/besu/key
+      - ./node2/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node2/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8546:8545"
+      - "9546:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.12
+
+  node3:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node3
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node3/key:/var/lib/besu/key
+      - ./node3/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node3/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8547:8545"
+      - "9547:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.13
+
+  node4:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node4
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node4/key:/var/lib/besu/key
+      - ./node4/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node4/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8548:8545"
+      - "9548:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.14
+
+  node5:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node5
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node5/key:/var/lib/besu/key
+      - ./node5/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node5/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8549:8545"
+      - "9549:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.15
+
+  node6:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node6
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node6/key:/var/lib/besu/key
+      - ./node6/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node6/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8550:8545"
+      - "9550:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.16
+
+  node7:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node7
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node7/key:/var/lib/besu/key
+      - ./node7/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node7/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8551:8545"
+      - "9551:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.17
+
+  node8:
+    image: custom-besu-reputation:1.0
+    container_name: besu-node8
+    environment:
+      BESU_REPUTATION_CONTRACT_ADDRESS: ${REPUTATION_CONTRACT_ADDRESS}
+    volumes:
+      - ./genesis.json:/network/genesis.json:ro
+      - ./static-nodes.json:/var/lib/besu/static-nodes.json
+      - ./node8/key:/var/lib/besu/key
+      - ./node8/vrf-private-key.pk8:/var/lib/besu/vrf-private-key.pk8
+      - ./node8/vrf-public-key.x509:/var/lib/besu/vrf-public-key.x509
+    command: *besu-command
+    ports:
+      - "8552:8545"
+      - "9552:9545"
+    networks:
+      besu-net:
+        ipv4_address: 172.28.0.18
+
+
+networks:
+  besu-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
