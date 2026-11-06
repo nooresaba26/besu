@@ -1,3 +1,82 @@
+# Reputation-Based Validator Selection in Hyperledger Besu
+
+A research implementation of reputation-based validator committee selection integrated into Hyperledger Besu’s QBFT consensus framework.
+
+**Researcher:** Kazi Noor e Saba  
+**Implementation branch:** `backup-before-adaptive-model`  
+**Status:** Experimental research implementation.
+
+## Research overview
+
+This project investigates how validator performance and participation history can inform committee selection in permissioned blockchains.
+
+I developed a mathematical model for reputation-based validator selection and implemented its components within Hyperledger Besu. The implementation extends the existing QBFT infrastructure with reputation scoring, historical time decay, participation balancing, ticket-based committee selection, and contract-backed validator statistics.
+
+This repository contains the modified blockchain client. It should be distinguished from the complete research study and its experimental artifacts.
+
+## My contribution
+
+My contribution focuses on developing the selection model and implementing its integration into Besu, including:
+
+- Reputation scoring based on uptime, success rate, and failure rate.
+- Historical score aggregation with time decay.
+- Participation balancing using consecutive participation counts.
+- Reputation-weighted ticket allocation and probabilistic committee selection.
+- Committee-size calculation based on an estimated adversarial ratio.
+- Integration of custom validator and proposer selection into QBFT.
+- Contract-backed metrics and reputation-update transaction handling.
+
+The underlying Ethereum client and QBFT implementation originate from the upstream Besu project.
+
+## Selection workflow
+
+1. Retrieve candidate validators and their performance statistics from the reputation contract, with fallback behavior when contract data is unavailable.
+2. Estimate network conditions and calculate eligibility thresholds.
+3. Calculate reputation scores using historical metrics, time decay, and participation balancing.
+4. Convert eligible validators’ scores into ticket counts.
+5. Calculate a target committee size and per-ticket selection probability.
+6. Draw the committee using deterministic hash-derived ticket values, supplementing undersized draws through a deterministic fallback.
+7. Select a proposer using block height and retry-round number.
+8. Track participation and submit reputation-update transactions following block addition.
+
+## Code guide
+
+| Component | Location |
+|---|---|
+| Reputation scoring, committee selection, contract integration, and supporting classes | [Validator package](consensus/qbft/src/main/java/org/hyperledger/besu/consensus/qbft/validator/) |
+| P-256 VRF generation, verification, key management, and announcement handling | [VRF package](consensus/qbft/src/main/java/org/hyperledger/besu/consensus/qbft/validator/vrf/) |
+| Integration with Besu’s QBFT controller | [QbftBesuControllerBuilder.java](app/src/main/java/org/hyperledger/besu/controller/QbftBesuControllerBuilder.java) |
+| Proposer rotation | [ReputationProposerSelector.java](consensus/common/src/main/java/org/hyperledger/besu/consensus/common/bft/blockcreation/ReputationProposerSelector.java) |
+| Eight-node deployment configuration | [Docker Compose configuration](docker/reputation-network-8/docker-compose.yml) |
+| VRF test cases | [P256TaiVrfServiceTest.java](consensus/qbft/src/test/java/org/hyperledger/besu/consensus/qbft/validator/vrf/P256TaiVrfServiceTest.java) |
+
+For a first look at the implementation, start with `ReputationScoreCalculator.java`, `WeightedValidatorSelector.java`, and `ReputationValidatorProvider.java` in the validator package.
+
+## Implementation scope
+
+This branch includes additional experimental components whose integration should be distinguished from the active selection path:
+
+- P-256 VRF proofs are generated and verified, but the current ticket draw uses hash-derived values rather than VRF outputs.
+- Fuzzy weights are calculated and stored, while the active time-decayed selection score uses fixed configured weights.
+- Adaptive eligibility filtering is activated conditionally using a behavioral risk estimate.
+- The committee-size calculation uses a probabilistic model; it does not independently establish a formal security guarantee for the complete protocol.
+
+## Deployment and evaluation
+
+The eight-node Docker Compose configuration references the custom image `custom-besu-reputation:1.0` and passes a reputation-contract address through environment configuration.
+
+Running the complete experiment requires the corresponding custom client build, deployed reputation contract, validator configuration, and experiment setup. The included Compose file alone is not a complete reproduction guide.
+
+Research-specific benchmarking scripts and result datasets are not included in this branch. Upstream Besu benchmarking utilities should not be confused with this project’s experimental evaluation.
+
+## Upstream attribution
+
+This project extends Besu rather than implementing an Ethereum client from scratch. The upstream license and attribution are retained; see [LICENSE](LICENSE).
+
+The original Besu documentation follows below.
+
+
+
 # Besu Ethereum Client
  [![CircleCI](https://circleci.com/gh/besu-eth/besu/tree/main.svg?style=svg)](https://circleci.com/gh/besu-eth/besu/tree/main)
  [![CodeQL](https://github.com/besu-eth/besu/actions/workflows/codeql.yml/badge.svg)](https://github.com/besu-eth/besu/actions/workflows/codeql.yml)
