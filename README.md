@@ -69,12 +69,18 @@ Running the complete experiment requires the corresponding custom client build, 
 
 Research-specific benchmarking scripts and result datasets are not included in this branch. Upstream Besu benchmarking utilities should not be confused with this project’s experimental evaluation.
 
+## Related implementation
+
+Companion Smart Contract:
+The validator statistics contract and deployment, registration, funding, and inspection scripts are available in [reputation-contracts](https://github.com/nooresaba26/reputation-contracts).
+
+The contract stores the activity counters consumed by this client's reputation calculation and validator selection components.
+
 ## Upstream attribution
 
 This project extends Besu rather than implementing an Ethereum client from scratch. The upstream license and attribution are retained; see [LICENSE](LICENSE).
 
 The original Besu documentation follows below.
-
 
 
 # Besu Ethereum Client
