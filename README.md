@@ -71,10 +71,18 @@ Research-specific benchmarking scripts and result datasets are not included in t
 
 ## Related implementation
 
-Companion Smart Contract:
+**Companion Smart Contract:**
 The validator statistics contract and deployment, registration, funding, and inspection scripts are available in [reputation-contracts](https://github.com/nooresaba26/reputation-contracts).
 
 The contract stores the activity counters consumed by this client's reputation calculation and validator selection components.
+
+**Model evaluation notebook:**
+A standalone Python simulation is available in
+[reputation-consensus-simulation](https://github.com/nooresaba26/reputation-consensus-simulation).
+
+It evaluates the selection model using synthetic validator behavior
+and reports committee composition and participation fairness.
+It is separate from the Besu network implementation and its benchmarks.
 
 ## Upstream attribution
 
